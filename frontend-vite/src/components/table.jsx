@@ -10,7 +10,7 @@ export default function Table() {
     return (
       <table className="w-full border-collapse">
         <thead>
-          <tr className="bg-indigo-50 text-indigo-600">
+          <tr className="bg-pink-50 text-pink-600">
             <th className="p-3 text-left">Product Name</th>
             <th className="p-3 text-left">Category</th>
             <th className="p-3 text-left">Units Sold</th>

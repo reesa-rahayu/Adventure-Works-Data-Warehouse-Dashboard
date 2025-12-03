@@ -1,5 +1,9 @@
 // import { useState } from "react";
 
+import KPICard from "../components/kpicard.jsx";
+import ChartCard from "../components/chart.jsx";
+import ProductTable from "../components/table.jsx";
+
 import {
     Line, Doughnut, Bar
 } from "react-chartjs-2";
