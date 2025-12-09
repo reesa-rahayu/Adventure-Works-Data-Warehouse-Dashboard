@@ -17,7 +17,6 @@ SELECT
 ON COLUMNS,
 {(
   [start date].[All Date],
-  [end date].[All Date],
   [Product].[All Product]
   )} 
 ON ROWS
