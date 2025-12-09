@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+
+<DataSources>
+
+    <DataSource>
+
+        <!-- Nama DataSource -->
+        <DataSourceName>Provider=Mondrian;DataSource=AdventureWorks;</DataSourceName>
+
+        <!-- Deskripsi -->
+        <DataSourceDescription>AdventureWorks Data Warehouse (Mondrian)</DataSourceDescription>
+
+        <!-- URL XMLA Servlet -->
+        <URL>http://localhost:8080/mondrian/xmla</URL>
+
+        <!-- Default connection (MySQL) -->
+        <DataSourceInfo>
+            Provider=mondrian;
+            Jdbc=jdbc:mysql://localhost:3306/wh_adventure_works;
+            JdbcUser=root;
+            JdbcPassword=password;
+            JdbcDrivers=com.mysql.jdbc.Driver;
+            Catalog=/WEB-INF/queries/AdventureWorks.xml
+        </DataSourceInfo>
+
+        <ProviderName>Mondrian</ProviderName>
+        <ProviderType>MDP</ProviderType>
+        <AuthenticationMode>Unauthenticated</AuthenticationMode>
+
+        <!-- Daftar Catalog -->
+        <Catalogs>
+
+            <Catalog name="AdventureWorks">
+                <Definition>/WEB-INF/queries/AdventureWorks.xml</Definition>
+            </Catalog>
+
+        </Catalogs>
+
+    </DataSource>
+
+</DataSources>
