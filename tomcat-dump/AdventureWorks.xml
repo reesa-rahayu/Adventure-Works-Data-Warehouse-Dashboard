@@ -1,0 +1,198 @@
+<Schema name="AdventureWorks">
+  <Dimension type="TimeDimension" visible="true" name="Date">
+    <Hierarchy name="dimdate" visible="true" hasAll="true" allMemberName="All Date" primaryKey="DateID">
+      <Table name="dimdate" alias="">
+      </Table>
+      <Level name="Year" visible="true" table="dimdate" column="YearNumber" uniqueMembers="false" levelType="TimeYears" hideMemberIf="Never">
+      </Level>
+      <Level name="Quarter" visible="true" column="QuarterNumber" type="Numeric" uniqueMembers="false" levelType="TimeQuarters" hideMemberIf="Never">
+      </Level>
+      <Level name="Month" visible="true" column="MonthName" type="String" uniqueMembers="false" levelType="TimeMonths" hideMemberIf="Never">
+      </Level>
+      <Level name="Week" visible="true" column="WeekNumber" type="Numeric" uniqueMembers="false" levelType="TimeWeeks" hideMemberIf="Never">
+      </Level>
+      <Level name="Day" visible="true" column="DayNumber" type="Numeric" uniqueMembers="false" levelType="TimeDays" hideMemberIf="Never">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Dimension type="StandardDimension" visible="true" name="Customer">
+    <Hierarchy name="dimcustomer" visible="true" hasAll="true" allMemberName="All Customer" primaryKey="CustomerID">
+      <Table name="dimcustomer" alias="">
+      </Table>
+      <Level name="Country" visible="true" column="Country" type="String" uniqueMembers="false" levelType="Regular" hideMemberIf="Never">
+      </Level>
+      <Level name="Territory" visible="true" column="TerritoryName" type="String" uniqueMembers="false" levelType="Regular" hideMemberIf="Never">
+      </Level>
+      <Level name="Name" visible="true" column="FullName" type="String" uniqueMembers="false" levelType="Regular" hideMemberIf="Never">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Dimension type="StandardDimension" visible="true" name="Product">
+    <Hierarchy name="dimproduct" visible="true" hasAll="true" allMemberName="All Product" primaryKey="ProductID">
+      <Table name="dimproduct" alias="">
+      </Table>
+      <Level name="Category" visible="true" column="CategoryName" type="String" uniqueMembers="false" levelType="Regular" hideMemberIf="Never">
+      </Level>
+      <Level name="SubCategory" visible="true" column="SubcategoryName" type="String" uniqueMembers="false" levelType="Regular" hideMemberIf="Never">
+      </Level>
+      <Level name="Name" visible="true" column="ProductName" type="String" uniqueMembers="false" levelType="Regular" hideMemberIf="Never">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Dimension type="StandardDimension" visible="true" name="Location">
+    <Hierarchy name="dimlocation" visible="true" hasAll="true" allMemberName="All Location" primaryKey="LocationID">
+      <Table name="dimlocation" alias="">
+      </Table>
+      <Level name="Location" visible="true" column="LocationName" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Dimension type="StandardDimension" visible="true" name="Address">
+    <Hierarchy name="dimaddress" visible="true" hasAll="true" allMemberName="All Address" primaryKey="AddressID">
+      <Table name="dimaddress" alias="">
+      </Table>
+      <Level name="City" visible="true" column="City" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+      <Level name="State" visible="true" column="StateProvince" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+      <Level name="Country" visible="true" column="CountryRegion" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Dimension type="StandardDimension" visible="true" name="Vendor">
+    <Hierarchy name="dimvendor" visible="true" hasAll="true" allMemberName="All Vendor" primaryKey="VendorID">
+      <Table name="dimvendor" alias="">
+      </Table>
+      <Level name="Vendor" visible="true" column="VendorName" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Dimension type="StandardDimension" visible="true" name="Ship Method">
+    <Hierarchy name="dimshipmethod" visible="true" hasAll="true" allMemberName="All Shipmethod" primaryKey="ShipMethodID">
+      <Table name="dimshipmethod" alias="">
+      </Table>
+      <Level name="Ship Method" visible="true" column="ShipMethodName" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Dimension type="StandardDimension" visible="true" name="Scrap Reason">
+    <Hierarchy name="dimscrapreason" visible="true" hasAll="true" allMemberName="All ScrapReason" primaryKey="ScrapReasonID">
+      <Table name="dimscrapreason" alias="">
+      </Table>
+      <Level name="Scrap Reason" visible="true" column="ScrapReasonName" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Dimension type="StandardDimension" visible="true" name="Special Offer">
+    <Hierarchy name="dimspecialoffer" visible="true" hasAll="true" allMemberName="All SpecialOffer" primaryKey="SpecialOfferID">
+      <Table name="dimspecialoffer" alias="">
+      </Table>
+      <Level name="Offer" visible="true" column="Description" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Dimension type="StandardDimension" visible="true" name="Territory">
+    <Hierarchy name="dimterritory" visible="true" hasAll="true" allMemberName="All Territory" primaryKey="TerritoryID">
+      <Table name="dimterritory" alias="">
+      </Table>
+      <Level name="Country" visible="true" column="CountryRegionCode" type="String" uniqueMembers="false" levelType="Regular" hideMemberIf="Never">
+      </Level>
+      <Level name="Territory" visible="true" column="TerritoryName" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+      <Level name="Group" visible="true" column="GroupName" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Dimension type="StandardDimension" visible="true" name="Sales Person">
+    <Hierarchy name="dimsalesperson" visible="true" hasAll="true" allMemberName="All SalesPerson" primaryKey="SalesPersonID">
+      <Table name="dimsalesperson" alias="">
+      </Table>
+      <Level name="Name" visible="true" column="EmployeeName" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+      <Level name="Job Title" visible="true" column="JobTitle" type="String" uniqueMembers="false" levelType="Regular">
+      </Level>
+    </Hierarchy>
+  </Dimension>
+  <Cube name="SalesCube" visible="true" cache="true" enabled="true">
+    <Table name="factsales" alias="">
+    </Table>
+    <DimensionUsage source="Date" name="date" visible="true" foreignKey="FK_DateID">
+    </DimensionUsage>
+    <DimensionUsage source="Product" name="product" visible="true" foreignKey="FK_ProductID">
+    </DimensionUsage>
+    <DimensionUsage source="Customer" name="customer" visible="true" foreignKey="FK_CustomerID">
+    </DimensionUsage>
+    <DimensionUsage source="Sales Person" name="salesperson" visible="true" foreignKey="FK_SalesPersonID">
+    </DimensionUsage>
+    <DimensionUsage source="Address" name=" ship address" visible="true" foreignKey="FK_ShipToAddressID">
+    </DimensionUsage>
+    <DimensionUsage source="Address" name="bill address" visible="true" foreignKey="FK_BillToAddressID">
+    </DimensionUsage>
+    <DimensionUsage source="Special Offer" name="special offer" visible="true" foreignKey="FK_SpecialOfferID">
+    </DimensionUsage>
+    <DimensionUsage source="Ship Method" name="ship method" visible="true" foreignKey="FK_ShipMethodID">
+    </DimensionUsage>
+    <Measure name="Sales Amount" column="LineTotal" datatype="Integer" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Total Due" column="TotalDue" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Order Quantity" column="OrderQty" datatype="Integer" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Tax Amt" column="TaxAmt" datatype="Integer" aggregator="distinct-count" visible="true">
+    </Measure>
+    <Measure name="Freight" column="Freight" aggregator="distinct-count" visible="true">
+    </Measure>
+  </Cube>
+  <Cube name="PurchaseCube" visible="true" cache="true" enabled="true">
+    <Table name="factpurchase" alias="">
+    </Table>
+    <DimensionUsage source="Date" name="date" visible="true" foreignKey="FK_DateID">
+    </DimensionUsage>
+    <DimensionUsage source="Product" name="product" visible="true" foreignKey="FK_ProductID">
+    </DimensionUsage>
+    <DimensionUsage source="Vendor" name="vendor" visible="true" foreignKey="FK_VendorID">
+    </DimensionUsage>
+    <DimensionUsage source="Ship Method" name="ship method" visible="true" foreignKey="FK_ShipMethodID">
+    </DimensionUsage>
+    <Measure name="Total Due" column="TotalDue" datatype="Integer" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Order Quantity" column="OrderQty" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Received Quantity" column="ReceivedQty" datatype="Integer" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Rejected Quantity" column="RejectedQty" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Stocked Quantity" column="StockedQty" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Line Total" column="LineTotal" aggregator="sum" visible="true">
+    </Measure>
+  </Cube>
+  <Cube name="ProductionCube" visible="true" cache="true" enabled="true">
+    <Table name="factproduction" alias="">
+    </Table>
+    <DimensionUsage source="Product" name="product" visible="true" foreignKey="FK_ProductID">
+    </DimensionUsage>
+    <DimensionUsage source="Location" name="location" visible="true" foreignKey="FK_LocationID">
+    </DimensionUsage>
+    <DimensionUsage source="Date" name="start date" visible="true" foreignKey="FK_StartDateID">
+    </DimensionUsage>
+    <DimensionUsage source="Scrap Reason" name="scrap reason" visible="true" foreignKey="FK_ScrapReasonID">
+    </DimensionUsage>
+    <DimensionUsage source="Date" name="end date" visible="true" foreignKey="FK_EndDateID">
+    </DimensionUsage>
+    <Measure name="Order Quantity" column="OrderQty" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Stocked Quantity" column="StockedQty" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Scrapped Quantity" column="ScrappedQty" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Planned Cost" column="PlannedCost" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Actual Cost" column="ActualCost" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Resource Hours" column="ActualResourceHrs" aggregator="sum" visible="true">
+    </Measure>
+    <Measure name="Production Days" column="ProductionDayCount" aggregator="sum" visible="true">
+    </Measure>
+  </Cube>
+</Schema>
