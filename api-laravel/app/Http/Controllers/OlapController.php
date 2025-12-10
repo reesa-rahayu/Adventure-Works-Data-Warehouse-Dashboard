@@ -15,97 +15,74 @@ class OlapController extends Controller
         $this->xmlaService = $xmlaService;
     }
 
-    // --- Method to get Sales Data ---
     public function getSalesData(Request $request)
     {
-        // Using a simple MDX to get the total Sales Amount (as per previous examples)
+        $measures = $request->measures ?? ['[Measures].[Sales Amount]'];
+        $timeLevel = $request->time_level ?? '[Date].[Year]'; 
+        $filters = $request->filters ?? []; 
+
+        // Build MDX dynamically
+        $mdxMeasures = implode(', ', $measures);
         $mdx = "
-            SELECT 
-                {[Measures].[Sales Amount]} ON COLUMNS,
-                {[Date].[All Date]} ON ROWS
+            SELECT
+                {{$mdxMeasures}} ON COLUMNS,
+                NON EMPTY {$timeLevel}.Members ON ROWS
             FROM [SalesCube]
         ";
 
+        // Apply optional filters (simple implementation)
+        if (!empty($filters)) {
+            $mdxFilters = [];
+            foreach ($filters as $dimension => $members) {
+                $joinedMembers = implode(',', $members);
+                $mdxFilters[] = "{$dimension}.&[{$joinedMembers}]";
+            }
+            if (!empty($mdxFilters)) {
+                $mdx .= " WHERE (".implode(',', $mdxFilters).")";
+            }
+        }
+
         try {
-            $rawXmlResponse = $this->xmlaService->executeMdx($mdx);
-            $cleanData = $this->parseXmlaResponse($rawXmlResponse);
-
-            // Return the parsed data as JSON
-            return response()->json($cleanData);
-
+            $rawXml = $this->xmlaService->executeMdx($mdx);
+            $data = $this->parseXmlaResponse($rawXml);
+            return response()->json($data);
         } catch (Exception $e) {
-            // Catch parsing errors, MDX errors (SOAP Faults), and Guzzle errors
             return response()->json(['error' => 'OLAP Query Failed: ' . $e->getMessage()], 500);
         }
     }
-    
-    // --- The Robust XMLA Parsing Method ---
-    /**
-     * Parses the complex XMLA SOAP response using DOMXPath.
-     * @param string $xmlResponse Raw XML string from Mondrian.
-     * @return array Clean array of cell values.
-     * @throws Exception if a SOAP Fault is detected.
-     */
+
     private function parseXmlaResponse(string $xmlResponse): array
     {
         $dom = new \DOMDocument();
         @$dom->loadXML($xmlResponse);
 
         $xpath = new \DOMXPath($dom);
-
         $xpath->registerNamespace('s', 'http://schemas.xmlsoap.org/soap/envelope/');
-        $xpath->registerNamespace('cxmla', 'urn:schemas-microsoft-com:xml-analysis');
         $xpath->registerNamespace('mddataset', 'urn:schemas-microsoft-com:xml-analysis:mddataset');
         $xpath->registerNamespace('XA', 'http://mondrian.sourceforge.net');
 
-        // Check for SOAP Fault
+        // SOAP Fault check
         $fault = $xpath->query('//s:Fault');
         if ($fault->length > 0) {
-            $descriptionNode = $xpath->query('//XA:error/XA:desc');
-            $errorMsg = $descriptionNode->length > 0
-                ? $descriptionNode->item(0)->nodeValue
-                : 'Unknown MDX Error (SOAP Fault detected)';
-            throw new \Exception("MDX Execution Error: " . $errorMsg);
+            $desc = $xpath->query('//XA:error/XA:desc');
+            $msg = $desc->length > 0 ? $desc->item(0)->nodeValue : 'Unknown MDX Error';
+            throw new \Exception($msg);
         }
 
-        $rowNodes = $xpath->query('//mddataset:row');
+        $rows = $xpath->query('//mddataset:row');
+        $result = [];
 
-        $cells = [];
-
-        foreach ($rowNodes as $row) {
-            $dataNode = $xpath->query('*[local-name() != "schemaLocation"]', $row)->item(0);
-
-            if ($dataNode) {
-                // Clean up the measure_key
-                $measure = $dataNode->localName;
-                $measure = str_replace(['_x005b_', '_x005d_', '_x0020_'], ['[', ']', ' '], $measure);
-                // Remove surrounding [Measures]. if exists
-                $measure = preg_replace('/^\[Measures\]\./', '', $measure);
-
-                $cells[] = [
+        foreach ($rows as $row) {
+            $cells = $xpath->query('*[local-name() != "schemaLocation"]', $row);
+            foreach ($cells as $cell) {
+                $measure = preg_replace('/^\[Measures\]\./', '', str_replace(['_x005b_', '_x005d_', '_x0020_'], ['[', ']', ' '], $cell->localName));
+                $result[] = [
                     'measure' => $measure,
-                    'value' => is_numeric($dataNode->nodeValue) ? (float)$dataNode->nodeValue : $dataNode->nodeValue
+                    'value' => is_numeric($cell->nodeValue) ? (float)$cell->nodeValue : $cell->nodeValue,
                 ];
             }
         }
 
-        return $cells;
-    }
-
-
-
-    // --- Method to run arbitrary MDX (kept as is) ---
-    public function runMdx(Request $request)
-    {
-        // Assuming $request->mdx contains the MDX string
-        $mdx = $request->mdx;
-
-        try {
-            $raw = $this->xmlaService->executeMdx($mdx);
-            $parsed = $this->parseXmlaResponse($raw);
-            return response()->json($parsed);
-        } catch (Exception $e) {
-            return response()->json(['error' => 'Dynamic MDX Query Failed: ' . $e->getMessage()], 500);
-        }
+        return $result;
     }
 }

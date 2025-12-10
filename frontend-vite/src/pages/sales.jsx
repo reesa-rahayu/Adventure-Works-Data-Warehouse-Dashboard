@@ -1,98 +1,113 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
 
-function SalesDataComponent() {
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+
+export default function SalesDashboard() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [timeLevel, setTimeLevel] = useState('[Date].[Year]');
+  const [measure, setMeasure] = useState('[Measures].[Sales Amount]');
 
   useEffect(() => {
-    const fetchSalesData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
+        const response = await axios.post('/api/sales', {
+          measures: [measure],
+          time_level: timeLevel,
+        });
 
-        // FIX: Use the relative path. This relies on your Vite/CRA proxy 
-        // to forward the request to http://localhost:8000.
-        // Also, ensuring the correct route: /api/sales (as per your routes/api.php)
-        const response = await axios.post('/api/sales'); 
-
-        // Check if the received data is an array before setting state
-        if (Array.isArray(response.data)) {
-            setData(response.data);
-            setError(null);
-        } else {
-            // This handles the unexpected output from the backend (like the debug string)
-            console.error("Received unexpected non-array data:", response.data);
-            throw new Error("Invalid data format received from API.");
-        }
-
+        if (Array.isArray(response.data)) setData(response.data);
+        else throw new Error('Invalid API response');
       } catch (err) {
-        console.error("Error fetching OLAP data:", err);
-        
-        // Attempt to extract the error message from the response object
-        const errorMessage = err.response && err.response.data && err.response.data.error
-                           ? err.response.data.error
-                           : "Failed to load SalesCube data. Check Laravel server logs.";
-        
-        setError(errorMessage);
-        
+        setError(err.response?.data?.error || err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSalesData();
-  }, []);
+    fetchData();
+  }, [timeLevel, measure]);
 
-  if (loading) return <div className="loading-message">Loading Sales Data...</div>;
+  if (loading) return <div>Loading Sales Data...</div>;
+  if (error) return <div style={{ color: 'red' }}>{error}</div>;
 
-  if (error) return (
-    <div style={{ color: 'red', border: '1px solid red', padding: '10px' }}>
-      <h3>❌ Data Fetch Error</h3>
-      <p>{error}</p>
-      <p>Action: Check Laravel console for full traceback.</p>
-    </div>
-  );
+  const labels = data.map((_, idx) => `Period ${idx + 1}`);
+  const values = data.map((d) => d.value);
 
-  // Use the measure key from the parsed data for the header
-  const measureKey = data.length > 0 ? data[0].measure : 'Measure Value';
-  const cleanKey = measureKey.replace(/^_x005b_Measures_x005d_._x005b_Sales_x0020_Amount_x005d_/, 'Sales Amount').replace(/_x005b_/g, '[').replace(/_x005d_/g, ']');
+  const chartData = {
+    labels,
+    datasets: [
+      {
+        label: measure.replace('[Measures].', ''),
+        data: values,
+        borderColor: 'rgba(75,192,192,1)',
+        backgroundColor: 'rgba(75,192,192,0.2)',
+        fill: true,
+        tension: 0.3,
+      },
+    ],
+  };
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2>📊 SalesCube Analysis</h2>
-      <p>Data successfully retrieved via XMLA.</p>
+      <h2>📊 SalesCube Dashboard</h2>
 
-      <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ background: '#f0f0f0' }}>
+      {/* Select Measure */}
+      <div style={{ marginBottom: '20px' }}>
+        <label>
+          Measure:{' '}
+          <select value={measure} onChange={(e) => setMeasure(e.target.value)}>
+            <option value="[Measures].[Sales Amount]">Sales Amount</option>
+            <option value="[Measures].[Total Due]">Total Due</option>
+            <option value="[Measures].[Order Quantity]">Order Quantity</option>
+          </select>
+        </label>
+        <label style={{ marginLeft: '20px' }}>
+          Time Level:{' '}
+          <select value={timeLevel} onChange={(e) => setTimeLevel(e.target.value)}>
+            <option value="[Date].[Year]">Year</option>
+            <option value="[Date].[Quarter]">Quarter</option>
+            <option value="[Date].[Month]">Month</option>
+          </select>
+        </label>
+      </div>
+
+      {/* Chart */}
+      <div style={{ maxWidth: '700px', marginBottom: '40px' }}>
+        <Line data={chartData} options={{ responsive: true, plugins: { legend: { position: 'top' } } }} />
+      </div>
+
+      {/* Table */}
+      <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <thead style={{ background: '#f0f0f0' }}>
+          <tr>
             <th>#</th>
-            <th>{cleanKey}</th>
+            <th>{measure.replace('[Measures].', '')}</th>
           </tr>
         </thead>
-
         <tbody>
-          {data.length === 0 ? (
-            <tr>
-              <td colSpan="2">No Data Returned (Valid but Empty Result Set)</td>
+          {data.map((d, idx) => (
+            <tr key={idx}>
+              <td>{idx + 1}</td>
+              <td>${Number(d.value).toLocaleString()}</td>
             </tr>
-          ) : (
-            data.map((item, index) => (
-              <tr key={index}>
-                <td>{index + 1}</td>
-                <td>
-                  {isNaN(item.value) 
-                    ? item.value 
-                    : Number(item.value).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
-                  }
-                </td>
-              </tr>
-            ))
-          )}
+          ))}
         </tbody>
       </table>
     </div>
   );
 }
-
-export default SalesDataComponent;
