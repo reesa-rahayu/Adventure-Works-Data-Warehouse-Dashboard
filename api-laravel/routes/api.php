@@ -9,5 +9,8 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 });
 
 // XMLA/MDX Query Routes
-
 Route::post('/sales', [OlapController::class, 'getSalesData']);
+Route::post('/production', [OlapController::class, 'getProductionData']);  
+Route::post('/purchase', [OlapController::class, 'getPurchaseData']);  
+
+Route::post('/mdx', [OlapController::class, 'runMdx']);

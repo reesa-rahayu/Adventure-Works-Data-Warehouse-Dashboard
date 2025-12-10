@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Services\XmlaService;
 use Exception;
-use SimpleXMLElement;
 
 class OlapController extends Controller
 {
@@ -16,74 +15,97 @@ class OlapController extends Controller
         $this->xmlaService = $xmlaService;
     }
 
+    // --- Method to get Sales Data ---
     public function getSalesData(Request $request)
     {
+        // Using a simple MDX to get the total Sales Amount (as per previous examples)
         $mdx = "
             SELECT 
-                {[Measures].[Sales Amount], 
-                 [Measures].[Order Quantity], 
-                 [Measures].[Total Due]} 
-            ON COLUMNS,
-                NON EMPTY {([Date].[All Date],
-                [Product].[All Product])} 
-            ON ROWS
+                {[Measures].[Sales Amount]} ON COLUMNS,
+                {[Date].[All Date]} ON ROWS
             FROM [SalesCube]
         ";
 
         try {
-            // 1. Eksekusi MDX melalui XMLA Service
             $rawXmlResponse = $this->xmlaService->executeMdx($mdx);
-
-            // 2. Parsing XMLA Response menjadi JSON
             $cleanData = $this->parseXmlaResponse($rawXmlResponse);
 
-            return response()->json($cleanData, 200);
+            // Return the parsed data as JSON
+            return response()->json($cleanData);
+
         } catch (Exception $e) {
-            // Tangani error koneksi atau error MDX
+            // Catch parsing errors, MDX errors (SOAP Faults), and Guzzle errors
             return response()->json(['error' => 'OLAP Query Failed: ' . $e->getMessage()], 500);
         }
     }
-
+    
+    // --- The Robust XMLA Parsing Method ---
+    /**
+     * Parses the complex XMLA SOAP response using DOMXPath.
+     * @param string $xmlResponse Raw XML string from Mondrian.
+     * @return array Clean array of cell values.
+     * @throws Exception if a SOAP Fault is detected.
+     */
     private function parseXmlaResponse(string $xmlResponse): array
     {
-        // Coba temukan dan parse XMLA Resultset
-        try {
-            // Hapus SOAP envelope dan namespace untuk parsing yang lebih mudah
-            $xmlResponse = preg_replace("/(<\/?)(\w+):([^>]*>)/", "$1$2$3", $xmlResponse);
-            $xml = simplexml_load_string($xmlResponse);
+        $dom = new \DOMDocument();
+        @$dom->loadXML($xmlResponse);
 
-            // Cari elemen CellData yang berisi hasil
-            $cells = [];
-            $cellData = $xml->xpath('//CellData/Cell');
+        $xpath = new \DOMXPath($dom);
 
-            if (empty($cellData)) {
-                // Jika CellData kosong, coba temukan error
-                $fault = $xml->xpath('//Fault/detail');
-                if (!empty($fault)) {
-                    $errorMsg = (string)$fault[0]->error->Description;
-                    throw new Exception("MDX Execution Error: " . $errorMsg);
-                }
-                return []; // Kembalikan array kosong jika tidak ada data
-            }
+        $xpath->registerNamespace('s', 'http://schemas.xmlsoap.org/soap/envelope/');
+        $xpath->registerNamespace('cxmla', 'urn:schemas-microsoft-com:xml-analysis');
+        $xpath->registerNamespace('mddataset', 'urn:schemas-microsoft-com:xml-analysis:mddataset');
+        $xpath->registerNamespace('XA', 'http://mondrian.sourceforge.net');
 
-            // Contoh parsing SANGAT sederhana (hanya mengambil nilai sel)
-            // Struktur data ini belum tentu ideal untuk React, tapi menunjukkan ekstraksi data.
-            foreach ($cellData as $cell) {
-                $value = (string)$cell->Value;
+        // Check for SOAP Fault
+        $fault = $xpath->query('//s:Fault');
+        if ($fault->length > 0) {
+            $descriptionNode = $xpath->query('//XA:error/XA:desc');
+            $errorMsg = $descriptionNode->length > 0
+                ? $descriptionNode->item(0)->nodeValue
+                : 'Unknown MDX Error (SOAP Fault detected)';
+            throw new \Exception("MDX Execution Error: " . $errorMsg);
+        }
+
+        $rowNodes = $xpath->query('//mddataset:row');
+
+        $cells = [];
+
+        foreach ($rowNodes as $row) {
+            $dataNode = $xpath->query('*[local-name() != "schemaLocation"]', $row)->item(0);
+
+            if ($dataNode) {
+                // Clean up the measure_key
+                $measure = $dataNode->localName;
+                $measure = str_replace(['_x005b_', '_x005d_', '_x0020_'], ['[', ']', ' '], $measure);
+                // Remove surrounding [Measures]. if exists
+                $measure = preg_replace('/^\[Measures\]\./', '', $measure);
+
                 $cells[] = [
-                    'value' => $value,
-                    // 'format' => (string)$cell->FmtValue // Ambil nilai yang sudah diformat
+                    'measure' => $measure,
+                    'value' => is_numeric($dataNode->nodeValue) ? (float)$dataNode->nodeValue : $dataNode->nodeValue
                 ];
             }
+        }
 
-            // Dalam aplikasi nyata, Anda perlu me-mapping $cells ini ke Row & Column
-            // berdasarkan struktur AxisData.
+        return $cells;
+    }
 
-            return $cells; // Kembalikan data sel mentah
 
+
+    // --- Method to run arbitrary MDX (kept as is) ---
+    public function runMdx(Request $request)
+    {
+        // Assuming $request->mdx contains the MDX string
+        $mdx = $request->mdx;
+
+        try {
+            $raw = $this->xmlaService->executeMdx($mdx);
+            $parsed = $this->parseXmlaResponse($raw);
+            return response()->json($parsed);
         } catch (Exception $e) {
-            // Jika XML invalid atau parsing gagal
-            throw new Exception("Error during XMLA parsing: " . $e->getMessage());
+            return response()->json(['error' => 'Dynamic MDX Query Failed: ' . $e->getMessage()], 500);
         }
     }
 }

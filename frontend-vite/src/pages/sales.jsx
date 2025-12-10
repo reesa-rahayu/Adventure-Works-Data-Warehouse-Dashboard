@@ -7,61 +7,90 @@ function SalesDataComponent() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchSalesData = async () => {
       try {
-        // Panggil endpoint Laravel Anda
-        const response = await axios.get('/api/analytics/sales-data'); 
-        
-        // Asumsi data yang dikembalikan Laravel adalah array yang siap ditampilkan
-        setData(response.data);
-        setError(null);
+        setLoading(true);
+
+        // FIX: Use the relative path. This relies on your Vite/CRA proxy 
+        // to forward the request to http://localhost:8000.
+        // Also, ensuring the correct route: /api/sales (as per your routes/api.php)
+        const response = await axios.post('/api/sales'); 
+
+        // Check if the received data is an array before setting state
+        if (Array.isArray(response.data)) {
+            setData(response.data);
+            setError(null);
+        } else {
+            // This handles the unexpected output from the backend (like the debug string)
+            console.error("Received unexpected non-array data:", response.data);
+            throw new Error("Invalid data format received from API.");
+        }
 
       } catch (err) {
         console.error("Error fetching OLAP data:", err);
-        setError("Failed to load OLAP data. Check Laravel and Mondrian logs.");
-        // Anda bisa mengambil pesan error dari response.data jika ada
+        
+        // Attempt to extract the error message from the response object
+        const errorMessage = err.response && err.response.data && err.response.data.error
+                           ? err.response.data.error
+                           : "Failed to load SalesCube data. Check Laravel server logs.";
+        
+        setError(errorMessage);
+        
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, []); // Run only once on component mount
+    fetchSalesData();
+  }, []);
 
-  if (loading) return <div>Loading Sales Data...</div>;
-  if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
+  if (loading) return <div className="loading-message">Loading Sales Data...</div>;
+
+  if (error) return (
+    <div style={{ color: 'red', border: '1px solid red', padding: '10px' }}>
+      <h3>❌ Data Fetch Error</h3>
+      <p>{error}</p>
+      <p>Action: Check Laravel console for full traceback.</p>
+    </div>
+  );
+
+  // Use the measure key from the parsed data for the header
+  const measureKey = data.length > 0 ? data[0].measure : 'Measure Value';
+  const cleanKey = measureKey.replace(/^_x005b_Measures_x005d_._x005b_Sales_x0020_Amount_x005d_/, 'Sales Amount').replace(/_x005b_/g, '[').replace(/_x005d_/g, ']');
 
   return (
-    <div>
-      <h2>SalesCube Analysis (from Laravel/Mondrian)</h2>
-      
-      {/* PERINGATAN: Karena fungsi parseXmlaResponse di Laravel 
-        mengembalikan data sel mentah (array of objects with 'value'), 
-        kita hanya menampilkan daftar nilai.
-      */}
-      
-      <table>
+    <div style={{ padding: '20px' }}>
+      <h2>📊 SalesCube Analysis</h2>
+      <p>Data successfully retrieved via XMLA.</p>
+
+      <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse' }}>
         <thead>
-          <tr>
-            <th>Value</th>
+          <tr style={{ background: '#f0f0f0' }}>
+            <th>#</th>
+            <th>{cleanKey}</th>
           </tr>
         </thead>
+
         <tbody>
-          {data.map((item, index) => (
-            <tr key={index}>
-              <td>{item.value}</td>
+          {data.length === 0 ? (
+            <tr>
+              <td colSpan="2">No Data Returned (Valid but Empty Result Set)</td>
             </tr>
-          ))}
+          ) : (
+            data.map((item, index) => (
+              <tr key={index}>
+                <td>{index + 1}</td>
+                <td>
+                  {isNaN(item.value) 
+                    ? item.value 
+                    : Number(item.value).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })
+                  }
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
-      
-      {/* Untuk visualisasi yang layak (tabel pivot, chart), 
-        Anda harus menggunakan library charting React dan 
-        memperbaiki logic parsing di Laravel untuk menghasilkan 
-        struktur data yang lebih rapi (misalnya, array of rows: 
-        [{ date: '2024', product: 'Bike', sales: 1000 }, ...] 
-      */}
-      
     </div>
   );
 }
