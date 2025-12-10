@@ -1,5 +1,4 @@
-<?php
 return [
-    'endpoint' => env('XMLA_ENDPOINT'),
-    'catalog' => env('XMLA_CATALOG'),
+    'endpoint' => env('XMLA_ENDPOINT', 'http://localhost:8080/mondrian/xmla'),
+    'catalog'  => env('XMLA_CATALOG', 'AdventureWorks'),
 ];
