@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use App\Services\XmlaService;
 use Exception;
 
-class SalesController extends Controller
+class ProductionController extends Controller
 {
     protected $xmlaService;
 
@@ -15,20 +15,20 @@ class SalesController extends Controller
         $this->xmlaService = $xmlaService;
     }
 
-    public function getSalesData(Request $request)
+    public function getProductionData(Request $request)
     {
-        $measures = $request->measures ?? ['[Measures].[Sales Amount]'];
+        $measures = $request->measures ?? ['[Measures].[Order Quantity]'];
         $timeLevel = $request->time_level ?? '[Date].[Year]';
         $filters = $request->filters ?? [];
 
         // Build MDX dynamically
         $mdxMeasures = implode(', ', $measures);
         $mdx = "
-            SELECT
-                {{$mdxMeasures}} ON COLUMNS,
-                NON EMPTY {$timeLevel}.Members ON ROWS
-            FROM [SalesCube]
-        ";
+        SELECT
+            {{$mdxMeasures}} ON COLUMNS,
+            NON EMPTY {$timeLevel}.Members ON ROWS
+        FROM [ProductionCube]
+    ";
 
         // Apply optional filters (simple implementation)
         if (!empty($filters)) {

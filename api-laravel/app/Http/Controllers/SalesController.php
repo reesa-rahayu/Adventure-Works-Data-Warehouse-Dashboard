@@ -3,122 +3,96 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Services\XmlaService;
-use Exception;
+use Illuminate\Support\Facades\DB;
 
 class SalesController extends Controller
 {
-    protected $xmlaService;
 
-    public function __construct(XmlaService $xmlaService)
+    public function getSales(Request $req)
     {
-        $this->xmlaService = $xmlaService;
+        $measure = $req->measures[0] ?? '[Measures].[Sales Amount]';
+        $timeLevel = $req->time_level ?? '[Date].[Year]';
+
+        $measureSQL = match ($measure) {
+            '[Measures].[Sales Amount]' => 'SUM(f.LineTotal)',
+            '[Measures].[Total Due]' => 'SUM(f.TotalDue)',
+            '[Measures].[Order Quantity]' => 'SUM(f.OrderQty)',
+            default => null,
+        };
+
+        if (!$measureSQL) {
+            return response()->json(['error' => 'Invalid measure'], 400);
+        }
+
+        $timeSQL = match ($timeLevel) {
+            '[Date].[Year]' => 'd.YearNumber',
+            '[Date].[Quarter]' => 'd.QuarterNumber',
+            '[Date].[Month]' => 'd.MonthName',
+            default => null,
+        };
+
+        if (!$timeSQL) {
+            return response()->json(['error' => 'Invalid time level'], 400);
+        }
+
+        $data = DB::table('factsales as f')
+            ->join('dimdate as d', 'f.FK_DateID', '=', 'd.DateID')
+            ->select(
+                DB::raw("$timeSQL AS measure"),
+                DB::raw("$measureSQL AS value")
+            )
+            ->groupBy('measure')
+            ->orderBy('measure')
+            ->get();
+
+        return response()->json($data);
     }
 
-    public function getSalesData(Request $request)
+    public function getTopProducts(Request $req)
     {
-        $measures = $request->measures ?? ['[Measures].[Sales Amount]'];
-        $timeLevel = $request->time_level ?? '[Date].[Year]';
-        $filters = $request->filters ?? [];
+        $data = DB::table('factsales as f')
+            ->join('dimproduct as p', 'f.FK_ProductID', '=', 'p.ProductID')
+            ->select(
+                'p.ProductName as product',
+                DB::raw('SUM(f.LineTotal) as value')
+            )
+            ->groupBy('product')
+            ->orderByDesc('value')
+            ->limit(5)
+            ->get();
 
-        // Build MDX dynamically
-        $mdxMeasures = implode(', ', $measures);
-        $mdx = "
-            SELECT
-                {{$mdxMeasures}} ON COLUMNS,
-                NON EMPTY {$timeLevel}.Members ON ROWS
-            FROM [SalesCube]
-        ";
-
-        // Apply optional filters (simple implementation)
-        if (!empty($filters)) {
-            $mdxFilterClauses = [];
-
-            foreach ($filters as $dimensionLevel => $members) {
-                // FIX 1: Skip filtering on the Time dimension if we are displaying a time series.
-                if (strpos($timeLevel, '[Date]') !== false && strpos($dimensionLevel, '[Date]') !== false) {
-                    continue;
-                }
-                // FIX 2: Correctly format hierarchical members: [Dimension].[Level].&[Value]
-                $formattedMembers = array_map(function ($memberValue) use ($dimensionLevel) {
-                    return "{$dimensionLevel}.&[{$memberValue}]";
-                }, $members);
-                // Wrap members in {} for a set if there are multiple, otherwise just use the member reference.
-                if (count($formattedMembers) > 1) {
-                    $mdxFilterClauses[] = '{' . implode(',', $formattedMembers) . '}';
-                } else {
-                    $mdxFilterClauses[] = $formattedMembers[0];
-                }
-            }
-
-            // The WHERE clause combines all filter tuples/sets into a single tuple
-            if (!empty($mdxFilterClauses)) {
-                $mdx .= " WHERE (" . implode(',', $mdxFilterClauses) . ")";
-            }
-        }
-
-        try {
-            $rawXml = $this->xmlaService->executeMdx($mdx);
-            $data = $this->parseXmlaResponse($rawXml);
-            return response()->json($data);
-        } catch (Exception $e) {
-            return response()->json(['error' => 'OLAP Query Failed: ' . $e->getMessage()], 500);
-        }
+        return response()->json($data);
     }
 
-    private function parseXmlaResponse(string $xmlResponse): array
+    public function getTopCustomers(Request $req)
     {
-        $dom = new \DOMDocument();
-        @$dom->loadXML($xmlResponse);
+        $data = DB::table('factsales as f')
+            ->join('dimcustomer as c', 'f.FK_CustomerID', '=', 'c.CustomerID')
+            ->select(
+                DB::raw("c.FullName as customer"),
+                DB::raw("SUM(f.LineTotal) as value")
+            )
+            ->groupBy('customer')
+            ->orderByDesc('value')
+            ->limit(5)
+            ->get();
 
-        $xpath = new \DOMXPath($dom);
-        $xpath->registerNamespace('s', 'http://schemas.xmlsoap.org/soap/envelope/');
-        $xpath->registerNamespace('mddataset', 'urn:schemas-microsoft-com:xml-analysis:mddataset');
-        $xpath->registerNamespace('XA', 'http://mondrian.sourceforge.net');
+        return response()->json($data);
+    }
 
-        // SOAP Fault check
-        $fault = $xpath->query('//s:Fault');
-        if ($fault->length > 0) {
-            $desc = $xpath->query('//XA:error/XA:desc');
-            $msg = $desc->length > 0 ? $desc->item(0)->nodeValue : 'Unknown MDX Error';
-            throw new \Exception($msg);
-        }
+    public function getTopSalespeople(Request $req)
+    {
+        $data = DB::table('factsales as f')
+            ->join('dimsalesperson as s', 'f.FK_SalesPersonID', '=', 's.SalesPersonID')
+            ->select(
+                DB::raw("s.EmployeeName as salesperson"),
+                DB::raw("SUM(f.LineTotal) as value")
+            )
+            ->groupBy('salesperson')
+            ->orderByDesc('value')
+            ->limit(4)
+            ->get();
 
-        $rows = $xpath->query('//mddataset:row');
-        $result = [];
-
-        foreach ($rows as $row) {
-            $memberCaption = null; // Stores the Time Period (e.g., 2024, Q1)
-            $measureValue = null;  // Stores the Sales Amount
-
-            // Get all cell elements in the row
-            $cells = $xpath->query('*[local-name() != "schemaLocation"]', $row);
-
-            // --- FIXED LOGIC TO GROUP CAPTION AND VALUE PER ROW ---
-            foreach ($cells as $cell) {
-                $cellName = $cell->localName;
-
-                // 1. Identify the Member Caption (The label for the row, e.g., the Year/Quarter)
-                if (stripos($cellName, 'MEMBER_CAPTION') !== false) {
-                    $memberCaption = $cell->nodeValue;
-                }
-                // 2. Identify the Measure Value (The data point)
-                else {
-                    // Assuming any other cell is the measure value
-                    $measureValue = is_numeric($cell->nodeValue) ? (float)$cell->nodeValue : $cell->nodeValue;
-                }
-            }
-
-            // After processing all cells in the row, add the combined object to the result
-            // This ensures we get one {measure: period, value: sales} object per MDX row
-            if ($memberCaption !== null && $measureValue !== null) {
-                $result[] = [
-                    'measure' => $memberCaption, // The time period is now the 'measure' label
-                    'value' => $measureValue,
-                ];
-            }
-        }
-
-        return $result;
+        return response()->json($data);
     }
 }
