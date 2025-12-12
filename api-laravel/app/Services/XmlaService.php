@@ -31,7 +31,7 @@ class XmlaService
                     </Command>
                     <Properties>
                         <PropertyList>
-                            <Catalog>AdventureWorks</Catalog>
+                            <Catalog>$this->catalog</Catalog>
                         </PropertyList>
                     </Properties>
                 </Execute>

@@ -45,7 +45,7 @@ export default function SalesDashboard() {
   if (loading) return <div>Loading Sales Data...</div>;
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
 
-  const labels = data.map((_, idx) => `Period ${idx + 1}`);
+  const labels = data.map((d) => d.measure); 
   const values = data.map((d) => d.value);
 
   const chartData = {
