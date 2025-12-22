@@ -12,7 +12,7 @@ export default function App() {
     <div className="min-h-screen bg-gray-100 flex">
       
       {/* SIDEBAR */}
-      <div className={`${open ? "w-64" : "w-20"} bg-white shadow-lg transition-all duration-300`}>
+      <div className={`${open ? "w-64" : "w-20"} bg-white shadow-lg transition-all duration-300 bg-fixed`}>
         <div className="p-5 flex items-center justify-between border-b">
           <h2 className={`text-xl font-bold text-black transition-all ${!open && "hidden"}`}>
             Adventure Works Data Warehouse

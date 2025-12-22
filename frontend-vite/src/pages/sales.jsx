@@ -162,8 +162,8 @@ export default function SalesDashboard() {
       <h3>{title}</h3>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          <tr style={{ background: "#f0f0f0" }}>
-            <th>#</th>
+          <tr class="bg-pink-200">
+            <th></th>
             <th>Name</th>
             <th>Amount</th>
           </tr>
@@ -194,8 +194,8 @@ export default function SalesDashboard() {
       <h3>{title}</h3>
       <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "15px" }}>
         <thead>
-          <tr style={{ background: "#f0f0f0" }}>
-            <th style={{ padding: "10px", textAlign: 'left' }}>#</th>
+          <tr class="bg-pink-200">
+            <th style={{ padding: "10px", textAlign: 'left' }}></th>
             <th style={{ padding: "10px", textAlign: 'left' }}>Product</th>
             <th style={{ padding: "10px", textAlign: 'left' }}>Category</th>
             <th style={{ padding: "10px", textAlign: 'right' }}>Units Sold</th>
@@ -321,18 +321,42 @@ export default function SalesDashboard() {
             gap: "20px",
           }}
         >
-          <h3>Sales Trend</h3>
-
           {/* FILTERS */}
           <div style={{ display: "flex", gap: "20px" }}>
 
             {/* MEASURE */}
             <div style={{ flex: 1 }}>
-              <label>Measure:
-                <select
-                  value={measure}
-                  onChange={(e) => setMeasure(e.target.value)}
-                  style={{ width: "100%", padding: "8px" }}
+            <label style={{ 
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+              fontSize: "16px",
+              color: "#000",
+              fontWeight: 500,
+            }}>
+              Measure
+              <select
+                value={measure}
+                onChange={(e) => setMeasure(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  fontSize: "14px",
+                  borderRadius: "10px",
+                  border: "1px solid #999999",
+                  backgroundColor: "#FFFFFF",
+                  cursor: "pointer",
+                  outline: "none",
+                  transition: "all 0.2s ease",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#F4A6C1"; // baby pink
+                  e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "#E5E7EB";
+                  e.target.style.boxShadow = "none";
+                }}
                 >
                   <option value="[Measures].[Sales Amount]">Sales Amount</option>
                   <option value="[Measures].[Total Due]">Total Due</option>
@@ -343,7 +367,16 @@ export default function SalesDashboard() {
 
             {/* TIME LEVEL */}
             <div style={{ flex: 1 }}>
-              <label>Time Level:
+              <label 
+              style={{ 
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+              fontSize: "16px",
+              color: "#000",
+              fontWeight: 500,
+              }}>
+                Time Level:
                 <select
                   value={timeLevel}
                   onChange={(e) => {
@@ -352,7 +385,25 @@ export default function SalesDashboard() {
                       setYear("All");
                     }
                   }}
-                  style={{ width: "100%", padding: "8px" }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    borderRadius: "10px",
+                    border: "1px solid #999999",
+                    backgroundColor: "#FFFFFF",
+                    cursor: "pointer",
+                    outline: "none",
+                    transition: "all 0.2s ease",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#F4A6C1"; // baby pink
+                    e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#E5E7EB";
+                    e.target.style.boxShadow = "none";
+                  }}
                 >
                   <option value="[Date].[Year]">Year</option>
                   <option value="[Date].[Quarter]">Quarter</option>
@@ -364,11 +415,37 @@ export default function SalesDashboard() {
             {/* YEAR FILTER — only for Quarter/Month */}
             {timeLevel !== "[Date].[Year]" && (
               <div style={{ flex: 1 }}>
-                <label>Year:
+                <label style={{ 
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+                fontSize: "16px",
+                color: "#000",
+                fontWeight: 500,
+                }}>
+                Year:
                   <select
                     value={year}
                     onChange={(e) => setYear(e.target.value)}
-                    style={{ width: "100%", padding: "8px" }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      fontSize: "14px",
+                      borderRadius: "10px",
+                      border: "1px solid #999999",
+                      backgroundColor: "#FFFFFF",
+                      cursor: "pointer",
+                      outline: "none",
+                      transition: "all 0.2s ease",
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = "#F4A6C1"; // baby pink
+                      e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = "#E5E7EB";
+                      e.target.style.boxShadow = "none";
+                    }}
                   >
                     <option value="All">All</option>
                     {years.map((yr) => (
@@ -412,12 +489,37 @@ export default function SalesDashboard() {
           {/* Filters for category pie + monthly bar charts */}
           <div style={{ marginBottom: "10px", display: "flex", gap: "16px" }}>
             <div>
-              <label>
+              <label style={{ 
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+              fontSize: "16px",
+              color: "#000",
+              fontWeight: 500,
+              }}>
                 Year:&nbsp;
                 <select
                   value={categoryYear}
                   onChange={(e) => setCategoryYear(e.target.value)}
-                  style={{ padding: "6px" }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    borderRadius: "10px",
+                    border: "1px solid #999999",
+                    backgroundColor: "#FFFFFF",
+                    cursor: "pointer",
+                    outline: "none",
+                    transition: "all 0.2s ease",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#F4A6C1"; // baby pink
+                    e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#E5E7EB";
+                    e.target.style.boxShadow = "none";
+                  }}
                 >
                   {years.map((yr) => (
                     <option key={yr} value={yr}>{yr}</option>
@@ -426,12 +528,38 @@ export default function SalesDashboard() {
               </label>
             </div>
             <div>
-              <label>
+              <label style={{ 
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+              fontSize: "16px",
+              color: "#000",
+              fontWeight: 500,
+              }}>
+                
                 Measure:&nbsp;
                 <select
                   value={categoryMeasure}
                   onChange={(e) => setCategoryMeasure(e.target.value)}
-                  style={{ padding: "6px" }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    borderRadius: "10px",
+                    border: "1px solid #999999",
+                    backgroundColor: "#FFFFFF",
+                    cursor: "pointer",
+                    outline: "none",
+                    transition: "all 0.2s ease",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#F4A6C1"; // baby pink
+                    e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#E5E7EB";
+                    e.target.style.boxShadow = "none";
+                  }}
                 >
                   <option value="[Measures].[Sales Amount]">Sales Amount</option>
                   <option value="[Measures].[Total Due]">Total Due</option>
@@ -510,12 +638,37 @@ export default function SalesDashboard() {
     <div style={{ display: "flex", gap: "10px" }}>
       {/* NEW YEAR FILTER FOR TERRITORY */}
       <div>
-        <label>
+        <label style={{ 
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+              fontSize: "16px",
+              color: "#000",
+              fontWeight: 500,
+              }}>
           Year:&nbsp;
           <select
             value={territoryYear}
             onChange={(e) => setTerritoryYear(e.target.value)}
-            style={{ padding: "6px" }}
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              fontSize: "14px",
+              borderRadius: "10px",
+              border: "1px solid #999999",
+              backgroundColor: "#FFFFFF",
+              cursor: "pointer",
+              outline: "none",
+              transition: "all 0.2s ease",
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "#F4A6C1"; // baby pink
+              e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "#E5E7EB";
+              e.target.style.boxShadow = "none";
+            }}
           >
             {years.map((yr) => (
               <option key={yr} value={yr}>{yr}</option>
@@ -524,12 +677,37 @@ export default function SalesDashboard() {
         </label>
       </div>
       <div>
-        <label>
+        <label style={{ 
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+              fontSize: "16px",
+              color: "#000",
+              fontWeight: 500,
+              }}>
           Measure:&nbsp;
           <select
             value={territoryMeasure}
             onChange={(e) => setTerritoryMeasure(e.target.value)}
-            style={{ padding: "6px" }}
+            style={{
+              width: "100%",
+              padding: "10px 12px",
+              fontSize: "14px",
+              borderRadius: "10px",
+              border: "1px solid #999999",
+              backgroundColor: "#FFFFFF",
+              cursor: "pointer",
+              outline: "none",
+              transition: "all 0.2s ease",
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "#F4A6C1"; // baby pink
+              e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "#E5E7EB";
+              e.target.style.boxShadow = "none";
+            }}
           >
             <option value="[Measures].[Sales Amount]">Sales Amount</option>
             <option value="[Measures].[Total Due]">Total Due</option>
