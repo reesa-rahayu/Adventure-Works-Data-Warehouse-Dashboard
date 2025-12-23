@@ -10,7 +10,7 @@ use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\PurchasingController;
 
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
-    return $request->user();
+    return $request->user(); 
 });
 
 Route::get('/sales-data', [SalesController::class, 'getSalesSummary']);
