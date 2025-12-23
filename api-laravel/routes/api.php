@@ -13,14 +13,7 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::post('/sales', [SalesController::class, 'getSales']);
-Route::post('/sales/trend', [SalesController::class, 'salesTrend']);
-Route::post('/sales/by-category', [SalesController::class, 'salesCategoryWithTrend']);
-Route::post('/sales/by-territory', [SalesController::class, 'salesByTerritory']);
-Route::post('/sales/top-products', [SalesController::class, 'getTopProducts']);
-Route::post('/sales/top-customers', [SalesController::class, 'getTopCustomers']);
-Route::post('/sales/top-salesperson', [SalesController::class, 'getTopSalespeople']);
-
+Route::get('/sales-data', [SalesController::class, 'getSalesSummary']);
 Route::get('/production-data', [ProductionController::class, 'getAnalytics']);
 Route::get('/purchasing-data', [PurchasingController::class, 'getAnalytics']);
 Route::get('/dashboard', [DashboardController::class, 'getSummary']);

@@ -1,740 +1,235 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Pie, Line, Bar } from "react-chartjs-2";
+import { Line, Bar, Pie } from "react-chartjs-2";
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  ArcElement,
-  BarElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement,
+  LineElement, BarElement, Title, Tooltip, Legend, Filler, ArcElement
 } from "chart.js";
 
 ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  ArcElement,
-  BarElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
+  CategoryScale, LinearScale, PointElement, LineElement, 
+  BarElement, Title, Tooltip, Legend, Filler, ArcElement
 );
 
+// Theme Constants
+const ACCENT_PINK = "#F8BBD0";
+const DEEP_PINK = "#F06292";
+const GREY_CHART = "#CBD5E0";
+const PURPLE_HINT = "#8460FB";
+
+const cardStyle = {
+  background: "#ffffff", padding: "24px", borderRadius: "20px",
+  boxShadow: "0 10px 25px -5px rgba(248, 187, 208, 0.15)", border: "1px solid #FDF2F5",
+};
+
 export default function SalesDashboard() {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const [timeLevel, setTimeLevel] = useState("[Date].[Year]");
-  const [measure, setMeasure] = useState("[Measures].[Sales Amount]");
-  const [year, setYear] = useState("All");
-
-  const [topProducts, setTopProducts] = useState([]);
-  const [topCustomers, setTopCustomers] = useState([]);
-  const [topSalespeople, setTopSalespeople] = useState([]);
-  const [years, setYears] = useState([]);
-  const [categoryData, setCategoryData] = useState({ pieData: [], lineData: [] });
-  const [categoryYear, setCategoryYear] = useState("");
-  const [categoryMeasure, setCategoryMeasure] = useState("[Measures].[Sales Amount]");
+  const [year, setYear] = useState(2014);
+  
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [territoryData, setTerritoryData] = useState([]);
-  const [territoryMeasure, setTerritoryMeasure] = useState("[Measures].[Sales Amount]");
-  const [territoryYear, setTerritoryYear] = useState("");
 
-  // Fetch available years
   useEffect(() => {
-    axios.get("/api/years").then((res) => {
-      setYears(res.data);
-      // Default the category section year selector to the latest year
-      if (res.data.length > 0) {
-        const latestYear = String(res.data[res.data.length - 1]);
-        setCategoryYear(latestYear);
-        setTerritoryYear(latestYear);
-      }
-    });
-  }, []);
-
-  // Fetch main + leaderboard data
-  useEffect(() => {
-    const effectiveYear = timeLevel === "[Date].[Year]" ? null : year !== "All" ? year : null;
-
-    const fetchSales = async () => {
-      try {
-        setLoading(true);
-
-        const response = await axios.post("/api/sales", {
-          measures: [measure],
-          time_level: timeLevel,
-          year: effectiveYear,
-        });
-
-        if (Array.isArray(response.data)) setData(response.data);
-        else throw new Error("Invalid API response");
-      } catch (err) {
-        setError(err.response?.data?.error || err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchLeaderboards = async () => {
-      const payload = {
-        time_level: timeLevel,
-        year: effectiveYear,
-      };
-
-      setTopProducts((await axios.post("/api/sales/top-products", payload)).data);
-      setTopCustomers((await axios.post("/api/sales/top-customers", payload)).data);
-      setTopSalespeople((await axios.post("/api/sales/top-salesperson", payload)).data);
-    };
-
-    fetchSales();
-    fetchLeaderboards();
-  }, [measure, timeLevel, year]);
-
-  // Fetch category pie + monthly trend data (for bottom pie + bar charts)
-  // and sales by territory summary data
-  useEffect(() => {
-    if (!categoryYear) return;
-
     const fetchData = async () => {
       try {
         setLoading(true);
-
-        const [categoryRes, territoryRes] = await Promise.all([
-          axios.post("/api/sales/by-category", {
-            measure: categoryMeasure,
-            // Always use monthly breakdown for the bottom bar chart
-            time_level: "[Date].[Month]",
-            year: categoryYear,
-          }),
-          axios.post("/api/sales/by-territory", {
-            measure: territoryMeasure,
-            year: territoryYear, // Use the new territoryYear state
-          }),
-        ]);
-
-        setCategoryData(categoryRes.data); // { pieData, lineData }
-        setTerritoryData(territoryRes.data); // [{ territory, value }, ...]
-
+        const res = await axios.get(`/api/sales-data?year=${year}`);
+        setData(res.data);
       } catch (err) {
-        setError(err.response?.data?.error || err.message);
+        console.error("Dashboard Fetch Error:", err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
-  }, [categoryMeasure, territoryMeasure, categoryYear, territoryYear]); 
+  }, [year]);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div style={{ color: "red" }}>{error}</div>;
+  if (loading || !data) return <div style={loaderStyle}>Loading AdventureWorks Sales...</div>;
 
-  const chartData = {
-    labels: data.map((d) => d.measure),
-    datasets: [
-      {
-        label: measure.replace("[Measures].", ""),
-        data: data.map((d) => d.value),
-        borderColor: "rgba(75,192,192,1)",
-        backgroundColor: "rgba(75,192,192,0.2)",
-        fill: true,
-        tension: 0.3,
-      },
-    ],
-  };
+  const commonOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } };
 
-  const renderTable = (title, rows, nameKey) => (
-    <div
-      style={{
-        background: "#ffffff",
-        padding: "20px",
-        borderRadius: "12px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-      }}
-    >
-      <h3>{title}</h3>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr class="bg-pink-200">
-            <th></th>
-            <th>Name</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr key={idx}>
-              <td>{idx + 1}</td>
-              <td>{row[nameKey]}</td>
-              <td>${Number(row.value).toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  const renderProductTable = (title, rows) => (
-    <div
-      style={{
-        background: "#ffffff",
-        padding: "20px",
-        borderRadius: "12px",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-        marginTop: "30px", // Separate the product table visually
-      }}
-    >
-      <h3>{title}</h3>
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "15px" }}>
-        <thead>
-          <tr class="bg-pink-200">
-            <th style={{ padding: "10px", textAlign: 'left' }}></th>
-            <th style={{ padding: "10px", textAlign: 'left' }}>Product</th>
-            <th style={{ padding: "10px", textAlign: 'left' }}>Category</th>
-            <th style={{ padding: "10px", textAlign: 'right' }}>Units Sold</th>
-            <th style={{ padding: "10px", textAlign: 'right' }}>Total Sales Amount</th>
-            <th style={{ padding: "10px", textAlign: 'right' }}>Profit Margin</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
-              <td style={{ padding: "10px", textAlign: 'left' }}>{idx + 1}</td>
-              <td style={{ padding: "10px", textAlign: 'left', fontWeight: 'bold' }}>{row.product}</td>
-              <td style={{ padding: "10px", textAlign: 'left' }}>{row.category}</td>
-              <td style={{ padding: "10px", textAlign: 'right' }}>{Number(row.units_sold).toLocaleString()}</td>
-              <td style={{ padding: "10px", textAlign: 'right', color: '#007bff' }}>
-                ${Number(row.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </td>
-              <td style={{ padding: "10px", textAlign: 'right', color: row.profit_margin < 0 ? 'red' : 'green' }}>
-                {Number(row.profit_margin).toFixed(2)}%
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-
-  // Pie chart
-  const categoryChart = {
-    labels: categoryData.pieData.map((d) => d.category),
-    datasets: [
-      {
-        label: "Sales by Category",
-        data: categoryData.pieData.map((d) => d.value),
-        backgroundColor: [
-          "#FF6384",
-          "#36A2EB",
-          "#FFCE56",
-          "#4BC0C0",
-          "#9966FF",
-          "#FF9F40",
-        ],
-      },
-    ],
-  };
-
-  // Match bar color with pie color (for selected category, or default)
-  const pieColors = categoryChart.datasets[0].backgroundColor;
-  let categoryBarColor = "#36A2EB";
-  if (selectedCategory) {
-    const idx = categoryChart.labels.indexOf(selectedCategory);
-    if (idx !== -1) {
-      categoryBarColor = pieColors[idx % pieColors.length];
-    }
-  } else if (pieColors && pieColors.length > 0) {
-    categoryBarColor = pieColors[0];
-  }
-
-  // Bar chart: monthly view over the selected year (per category) for selected measure
-  const monthlyLabels = [];
-  const monthlyTotals = {};
-
-  categoryData.lineData.forEach((d) => {
-    // If a category is selected from the pie chart, filter to that category
-    if (selectedCategory && d.category !== selectedCategory) return;
-
-    const time = d.time;
-    if (!monthlyLabels.includes(time)) {
-      monthlyLabels.push(time);
-    }
-
-    const value = Number(d.value) || 0;
-
-    monthlyTotals[time] = (monthlyTotals[time] || 0) + value;
-  });
-
-  const prettyCategoryMeasure = categoryMeasure.replace("[Measures].[", "").replace("]", "");
-
-  const categoryBarChart = {
-    labels: monthlyLabels,
-    datasets: [
-      {
-        label: selectedCategory
-          ? `${prettyCategoryMeasure} (${selectedCategory})`
-          : prettyCategoryMeasure,
-        data: monthlyLabels.map((label) => monthlyTotals[label] || 0),
-        backgroundColor: categoryBarColor,
-      },
-    ],
-  };  
-
-  // "Sales by Territory" bar chart using territory data
-  const prettyTerritoryMeasure = territoryMeasure
-    .replace("[Measures].[", "")
-    .replace("]", "");
-
-  const salesByTerritoryChart = {
-    labels: territoryData.map((d) => d.territory),
-    datasets: [
-      {
-        label: `${prettyTerritoryMeasure} by Territory`,
-        data: territoryData.map((d) => d.value),
-        backgroundColor: "#4BC0C0",
-      },
-    ],
-  };
+  const displayTrends = selectedCategory 
+    ? data.lineData.filter(d => d.category === selectedCategory)
+    : data.monthlyTrends;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
-      
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "20px" }}>
-
-        {/* LEFT CHART */}
-        <div
-          style={{
-            flex: 1,
-            background: "#ffffff",
-            padding: "20px",
-            borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "20px",
-          }}
-        >
-          {/* FILTERS */}
-          <div style={{ display: "flex", gap: "20px" }}>
-
-            {/* MEASURE */}
-            <div style={{ flex: 1 }}>
-            <label style={{ 
-              display: "flex",
-              flexDirection: "column",
-              gap: "4px",
-              fontSize: "16px",
-              color: "#000",
-              fontWeight: 500,
-            }}>
-              Measure
-              <select
-                value={measure}
-                onChange={(e) => setMeasure(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  fontSize: "14px",
-                  borderRadius: "10px",
-                  border: "1px solid #999999",
-                  backgroundColor: "#FFFFFF",
-                  cursor: "pointer",
-                  outline: "none",
-                  transition: "all 0.2s ease",
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "#F4A6C1"; // baby pink
-                  e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = "#E5E7EB";
-                  e.target.style.boxShadow = "none";
-                }}
-                >
-                  <option value="[Measures].[Sales Amount]">Sales Amount</option>
-                  <option value="[Measures].[Total Due]">Total Due</option>
-                  <option value="[Measures].[Order Quantity]">Order Quantity</option>
-                </select>
-              </label>
-            </div>
-
-            {/* TIME LEVEL */}
-            <div style={{ flex: 1 }}>
-              <label 
-              style={{ 
-              display: "flex",
-              flexDirection: "column",
-              gap: "4px",
-              fontSize: "16px",
-              color: "#000",
-              fontWeight: 500,
-              }}>
-                Time Level:
-                <select
-                  value={timeLevel}
-                  onChange={(e) => {
-                    setTimeLevel(e.target.value);
-                    if (e.target.value === "[Date].[Year]") {
-                      setYear("All");
-                    }
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    fontSize: "14px",
-                    borderRadius: "10px",
-                    border: "1px solid #999999",
-                    backgroundColor: "#FFFFFF",
-                    cursor: "pointer",
-                    outline: "none",
-                    transition: "all 0.2s ease",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#F4A6C1"; // baby pink
-                    e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#E5E7EB";
-                    e.target.style.boxShadow = "none";
-                  }}
-                >
-                  <option value="[Date].[Year]">Year</option>
-                  <option value="[Date].[Quarter]">Quarter</option>
-                  <option value="[Date].[Month]">Month</option>
-                </select>
-              </label>
-            </div>
-
-            {/* YEAR FILTER — only for Quarter/Month */}
-            {timeLevel !== "[Date].[Year]" && (
-              <div style={{ flex: 1 }}>
-                <label style={{ 
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-                fontSize: "16px",
-                color: "#000",
-                fontWeight: 500,
-                }}>
-                Year:
-                  <select
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      fontSize: "14px",
-                      borderRadius: "10px",
-                      border: "1px solid #999999",
-                      backgroundColor: "#FFFFFF",
-                      cursor: "pointer",
-                      outline: "none",
-                      transition: "all 0.2s ease",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#F4A6C1"; // baby pink
-                      e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#E5E7EB";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  >
-                    <option value="All">All</option>
-                    {years.map((yr) => (
-                      <option key={yr} value={yr}>{yr}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            )}
-
-          </div>
-
-          {/* LINE CHART */}
-          <Line data={chartData} options={{ responsive: true }} />
-        </div>
-
-        {/* RIGHT - LEADERBOARDS */}
-        <div style={{ width: "35%", display: "flex", flexDirection: "column", gap: "20px" }}>
-          {renderTable(
-            timeLevel !== "[Date].[Year]" && year !== "All"
-              ? `Top Customers ${year}`
-              : "Top Customers (All Time)",
-            topCustomers,
-            "customer"
-          )}
-          {renderTable(
-            timeLevel !== "[Date].[Year]" && year !== "All"
-              ? `Top Sales Person ${year}`
-              : "Top Sales Person (All Time)",
-            topSalespeople,
-            "salesperson"
-          )}
-        </div>
+    <div style={{ minHeight: "100vh" }}>
+      {/* HEADER */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" }}>
+        <h1 style={{ fontSize: "26px", fontWeight: "800", color: "#2D3748" }}>Sales Analysis</h1>
+        <select value={year} onChange={(e) => setYear(e.target.value)} style={selectStyle}>
+          {[2011, 2012, 2013, 2014].map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
       </div>
-      <div style={{ 
-            background: "#ffffff",
-            padding: "20px",
-            borderRadius: "12px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.08)", }}>
-        <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "30px" }}>
-          {/* Filters for category pie + monthly bar charts */}
-          <div style={{ marginBottom: "10px", display: "flex", gap: "16px" }}>
-            <div>
-              <label style={{ 
-              display: "flex",
-              flexDirection: "column",
-              gap: "4px",
-              fontSize: "16px",
-              color: "#000",
-              fontWeight: 500,
-              }}>
-                Year:&nbsp;
-                <select
-                  value={categoryYear}
-                  onChange={(e) => setCategoryYear(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    fontSize: "14px",
-                    borderRadius: "10px",
-                    border: "1px solid #999999",
-                    backgroundColor: "#FFFFFF",
-                    cursor: "pointer",
-                    outline: "none",
-                    transition: "all 0.2s ease",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#F4A6C1"; // baby pink
-                    e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#E5E7EB";
-                    e.target.style.boxShadow = "none";
-                  }}
-                >
-                  {years.map((yr) => (
-                    <option key={yr} value={yr}>{yr}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div>
-              <label style={{ 
-              display: "flex",
-              flexDirection: "column",
-              gap: "4px",
-              fontSize: "16px",
-              color: "#000",
-              fontWeight: 500,
-              }}>
-                
-                Measure:&nbsp;
-                <select
-                  value={categoryMeasure}
-                  onChange={(e) => setCategoryMeasure(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    fontSize: "14px",
-                    borderRadius: "10px",
-                    border: "1px solid #999999",
-                    backgroundColor: "#FFFFFF",
-                    cursor: "pointer",
-                    outline: "none",
-                    transition: "all 0.2s ease",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#F4A6C1"; // baby pink
-                    e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#E5E7EB";
-                    e.target.style.boxShadow = "none";
-                  }}
-                >
-                  <option value="[Measures].[Sales Amount]">Sales Amount</option>
-                  <option value="[Measures].[Total Due]">Total Due</option>
-                  <option value="[Measures].[Order Quantity]">Order Quantity</option>
-                </select>
-              </label>
-            </div>
+
+      {/* KPI SECTION */}
+      <div style={grid4Style}>
+        <StatCard title="Total Revenue" value={`$${(data.kpis.totalRevenue / 1000000).toFixed(2)}M`} unit="YTD" />
+        <StatCard title="Units Sold" value={data.kpis.totalQty?.toLocaleString()} unit="Items" />
+        <StatCard title="Avg Deal Size" value={`$${Math.round(data.kpis.avgOrderValue)}`} unit="USD" />
+        <StatCard title="Shipping/Freight" value={`$${(data.kpis.totalFreight / 1000).toFixed(1)}k`} unit="Cost" />
+      </div>
+
+      {/* MAIN TREND & CATEGORY PIE */}
+      <div style={grid2_1Style}>
+        <div style={cardStyle}>
+          <h3 style={chartTitleStyle}>
+            Monthly Performance Trend {selectedCategory ? `- ${selectedCategory}` : "(All Categories)"}
+          </h3>
+          <div style={{ height: "350px", position: "relative" }}>
+            <Line 
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  y: { stacked: true, title: { display: true, text: 'USD ($)' } },
+                  y1: { 
+                    type: 'linear', display: true, position: 'right', 
+                    grid: { drawOnChartArea: false },
+                    title: { display: true, text: 'Quantity (Units)' }
+                  }
+                },
+                plugins: { legend: { position: 'bottom' } }
+              }}
+              data={{
+                labels: displayTrends.map(m => m.MonthName || m.time),
+                datasets: [
+                  {
+                    label: "Sales Amount",
+                    data: displayTrends.map(m => m.sales || m.sales_amount),
+                    borderColor: DEEP_PINK, backgroundColor: 'rgba(240, 98, 146, 0.4)', fill: true, yAxisID: 'y'
+                  },
+                  {
+                    label: "Total Due",
+                    data: displayTrends.map(m => m.revenue || m.total_due),
+                    borderColor: PURPLE_HINT, backgroundColor: 'rgba(132, 96, 251, 0.4)', fill: true, yAxisID: 'y'
+                  },
+                  {
+                    label: "Order Qty",
+                    data: displayTrends.map(m => m.totalQty || m.order_qty),
+                    borderColor: "#4A5568", backgroundColor: 'transparent', fill: false, yAxisID: 'y1', borderDash: [5, 5]
+                  }
+                ]
+              }}
+            />
           </div>
-          {/* Charts */}
-          <div style={{ display: "flex", gap: "20px" }}>
-            <div style={{ flex: 1 }}>
-              <h3>Sales by Product Category</h3>
-              <Pie
-                data={categoryChart}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: {
-                      position: "top",
-                    },
-                  },
-                  onClick: (event, elements) => {
-                    if (!elements || elements.length === 0) {
-                      setSelectedCategory(null);
-                      return;
-                    }
-                    const sliceIndex = elements[0].index;
-                    const category = categoryChart.labels[sliceIndex];
-                    setSelectedCategory(category);
-                  },
-                }}
-              />
-            </div>
-            <div style={{ flex: 2 }}>
-            <h3>
-              {selectedCategory
-                ? `${selectedCategory} Sales ${categoryYear}`
-                : `Category Sales ${categoryYear}`}
-            </h3>
-              <Bar
-                data={categoryBarChart}
-                options={{
-                  responsive: true,
-                  plugins: { legend: { position: "top" } },
-                  scales: {
-                    y: { beginAtZero: true },
-                  },
-                }}
-              />
-            </div>
+        </div>
+
+        <div style={cardStyle}>
+          <h3 style={chartTitleStyle}>Category Share (Click to Filter)</h3>
+          <div style={{ height: "350px", position: "relative" }}>
+            <Pie 
+              data={{
+                labels: data.categories.map(c => c.CategoryName),
+                datasets: [{ 
+                  data: data.categories.map(c => c.total), 
+                  backgroundColor: [DEEP_PINK, ACCENT_PINK, GREY_CHART, PURPLE_HINT],
+                  borderWidth: selectedCategory ? 5 : 1,
+                  borderColor: "#fff"
+                }]
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (evt, element) => {
+                  if (element.length > 0) {
+                    const index = element[0].index;
+                    setSelectedCategory(data.categories[index].CategoryName);
+                  } else {
+                    setSelectedCategory(null);
+                  }
+                },
+                plugins: { legend: { position: 'bottom' } }
+              }}
+            />
           </div>
         </div>
       </div>
-      {/* Sales by Territory section */}
-<div
-  style={{
-    marginTop: "20px",
-    background: "#ffffff",
-    padding: "20px",
-    borderRadius: "12px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-  }}
->
-  <div
-    style={{
-      marginBottom: "10px",
-      display: "flex",
-      gap: "16px",
-      alignItems: "center",
-      justifyContent: "space-between",
-    }}
-  >
-    <h3 style={{ margin: 0 }}>
-      {prettyTerritoryMeasure} by Territory ({territoryYear})
-    </h3>
-    <div style={{ display: "flex", gap: "10px" }}>
-      {/* NEW YEAR FILTER FOR TERRITORY */}
-      <div>
-        <label style={{ 
-              display: "flex",
-              flexDirection: "column",
-              gap: "4px",
-              fontSize: "16px",
-              color: "#000",
-              fontWeight: 500,
-              }}>
-          Year:&nbsp;
-          <select
-            value={territoryYear}
-            onChange={(e) => setTerritoryYear(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              fontSize: "14px",
-              borderRadius: "10px",
-              border: "1px solid #999999",
-              backgroundColor: "#FFFFFF",
-              cursor: "pointer",
-              outline: "none",
-              transition: "all 0.2s ease",
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = "#F4A6C1"; // baby pink
-              e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "#E5E7EB";
-              e.target.style.boxShadow = "none";
-            }}
-          >
-            {years.map((yr) => (
-              <option key={yr} value={yr}>{yr}</option>
+
+      {/* TERRITORY & LEADERBOARDS */}
+      <div style={{ ...grid2_1Style, marginTop: "24px" }}>
+        <div style={cardStyle}>
+          <h3 style={chartTitleStyle}>Territory Performance</h3>
+          <div style={{ height: "350px", position: "relative" }}>
+            <Bar 
+              options={{ ...commonOptions, indexAxis: 'y' }}
+              data={{
+                labels: data.territories.map(t => t.TerritoryName),
+                datasets: [{ label: "Total Sales", data: data.territories.map(t => t.value), backgroundColor: ACCENT_PINK }]
+              }}
+            />
+          </div>
+        </div>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+           <LeaderboardTable title="Top Salespeople" rows={data.leaderboards.salespeople} />
+           <LeaderboardTable title="Top Customers" rows={data.leaderboards.customers} />
+        </div>
+      </div>
+
+      {/* PRODUCT PROFITABILITY TABLE */}
+      <h2 style={{ ...sectionHeaderStyle, marginTop: "40px" }}>🏆 Top Product Performance</h2>
+      <div style={cardStyle}>
+        <table style={tableStyle}>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${ACCENT_PINK}` }}>
+              <th>Product</th>
+              <th>Category</th>
+              <th style={{ textAlign: 'right' }}>Units</th>
+              <th style={{ textAlign: 'right' }}>Amount</th>
+              <th style={{ textAlign: 'right' }}>Margin</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.products.map((p, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid #F7FAFC' }}>
+                <td style={{ padding: "12px 0", fontWeight: "600" }}>{p.product}</td>
+                <td>{p.category}</td>
+                <td style={{ textAlign: 'right' }}>{p.units_sold}</td>
+                <td style={{ textAlign: 'right', color: DEEP_PINK, fontWeight: "700" }}>${Number(p.total_amount).toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: p.profit_margin > 0 ? "green" : "red" }}>{p.profit_margin}%</td>
+              </tr>
             ))}
-          </select>
-        </label>
+          </tbody>
+        </table>
       </div>
-      <div>
-        <label style={{ 
-              display: "flex",
-              flexDirection: "column",
-              gap: "4px",
-              fontSize: "16px",
-              color: "#000",
-              fontWeight: 500,
-              }}>
-          Measure:&nbsp;
-          <select
-            value={territoryMeasure}
-            onChange={(e) => setTerritoryMeasure(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              fontSize: "14px",
-              borderRadius: "10px",
-              border: "1px solid #999999",
-              backgroundColor: "#FFFFFF",
-              cursor: "pointer",
-              outline: "none",
-              transition: "all 0.2s ease",
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = "#F4A6C1"; // baby pink
-              e.target.style.boxShadow = "0 0 0 3px rgba(244,166,193,0.25)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "#E5E7EB";
-              e.target.style.boxShadow = "none";
-            }}
-          >
-            <option value="[Measures].[Sales Amount]">Sales Amount</option>
-            <option value="[Measures].[Total Due]">Total Due</option>
-            <option value="[Measures].[Order Quantity]">Order Quantity</option>
-            <option value="[Measures].[Tax Amount]">Tax Amount</option>
-            <option value="[Measures].[Freight]">Freight</option>
-          </select>
-        </label>
-      </div>
-    </div>
-  </div>
-  <div style={{ height: "320px" }}>
-    <Bar
-      data={salesByTerritoryChart}
-      options={{
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: "top" } },
-        scales: {
-          y: { beginAtZero: true },
-        },
-      }}
-    />
-  </div>
-</div>
-
-      {renderProductTable("🏆 Top 10 Products", topProducts)}
     </div>
   );
 }
+
+// Sub-components for cleaner code
+function StatCard({ title, value, unit }) {
+  return (
+    <div style={cardStyle}>
+      <p style={{ color: "#718096", fontSize: "14px", marginBottom: "8px" }}>{title}</p>
+      <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+        <h2 style={{ fontSize: "24px", fontWeight: "700", margin: 0 }}>{value}</h2>
+        <span style={{ color: "#A0AEC0", fontSize: "12px" }}>{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+function LeaderboardTable({ title, rows }) {
+  return (
+    <div style={cardStyle}>
+      <h4 style={{ margin: "0 0 15px 0", fontSize: "16px" }}>{title}</h4>
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #FDF2F5" }}>
+          <span style={{ fontSize: "14px" }}>{r.name}</span>
+          <span style={{ fontWeight: "700", color: DEEP_PINK }}>${Number(r.value).toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Helper Styles
+const loaderStyle = { textAlign: "center", padding: "100px", color: DEEP_PINK, fontSize: "20px", fontWeight: "bold" };
+const chartTitleStyle = { marginBottom: "15px", fontSize: "16px", fontWeight: "600", color: "#4A5568" };
+const grid4Style = { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px", marginBottom: "24px" };
+const grid2Style = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" };
+const grid2_1Style = { display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px" };
+const sectionHeaderStyle = { fontSize: "20px", fontWeight: "800", color: "#2D3748" };
+const selectStyle = { padding: "8px 16px", borderRadius: "10px", border: "1px solid #E2E8F0", cursor: "pointer" };
+const tableStyle = { width: "100%", borderCollapse: "collapse", fontSize: "14px" };
