@@ -3,122 +3,162 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Services\XmlaService;
-use Exception;
+use Illuminate\Support\Facades\DB;
 
 class ProductionController extends Controller
 {
-    protected $xmlaService;
-
-    public function __construct(XmlaService $xmlaService)
+    public function getAnalytics(Request $request)
     {
-        $this->xmlaService = $xmlaService;
-    }
-
-    public function getProductionData(Request $request)
-    {
-        $measures = $request->measures ?? ['[Measures].[Order Quantity]'];
-        $timeLevel = $request->time_level ?? '[Date].[Year]';
-        $filters = $request->filters ?? [];
-
-        // Build MDX dynamically
-        $mdxMeasures = implode(', ', $measures);
-        $mdx = "
-        SELECT
-            {{$mdxMeasures}} ON COLUMNS,
-            NON EMPTY {$timeLevel}.Members ON ROWS
-        FROM [ProductionCube]
-    ";
-
-        // Apply optional filters (simple implementation)
-        if (!empty($filters)) {
-            $mdxFilterClauses = [];
-
-            foreach ($filters as $dimensionLevel => $members) {
-                // FIX 1: Skip filtering on the Time dimension if we are displaying a time series.
-                if (strpos($timeLevel, '[Date]') !== false && strpos($dimensionLevel, '[Date]') !== false) {
-                    continue;
-                }
-                // FIX 2: Correctly format hierarchical members: [Dimension].[Level].&[Value]
-                $formattedMembers = array_map(function ($memberValue) use ($dimensionLevel) {
-                    return "{$dimensionLevel}.&[{$memberValue}]";
-                }, $members);
-                // Wrap members in {} for a set if there are multiple, otherwise just use the member reference.
-                if (count($formattedMembers) > 1) {
-                    $mdxFilterClauses[] = '{' . implode(',', $formattedMembers) . '}';
-                } else {
-                    $mdxFilterClauses[] = $formattedMembers[0];
-                }
-            }
-
-            // The WHERE clause combines all filter tuples/sets into a single tuple
-            if (!empty($mdxFilterClauses)) {
-                $mdx .= " WHERE (" . implode(',', $mdxFilterClauses) . ")";
-            }
-        }
-
         try {
-            $rawXml = $this->xmlaService->executeMdx($mdx);
-            $data = $this->parseXmlaResponse($rawXml);
-            return response()->json($data);
-        } catch (Exception $e) {
-            return response()->json(['error' => 'OLAP Query Failed: ' . $e->getMessage()], 500);
+            // Filters
+            $locationId = $request->query('location_id');
+            $categoryName = $request->query('category_name');
+            $year = $request->query('year', 2014); // Default to last available year
+
+            $baseQuery = DB::table('factproduction')
+                ->join('dimdate', 'factproduction.FK_StartDateID', '=', 'dimdate.DateID')
+                ->when($year, fn($q) => $q->where('dimdate.YearNumber', $year))
+                ->when($locationId, fn($q) => $q->where('factproduction.FK_LocationID', $locationId));
+
+            //  KPI Metrics
+            $kpis = (clone $baseQuery)
+                ->select(
+                    DB::raw('SUM(StockedQty) as totalUnits'),
+                    DB::raw('SUM(ScrappedQty) as totalScrapped'),
+                    DB::raw('SUM(OrderQty) as totalOrder'),
+                    DB::raw('AVG(ProductionDayCount) as avgLeadTime')
+                )
+                ->first();
+
+            $scrapRate = ($kpis->totalOrder > 0) ? round(($kpis->totalScrapped / $kpis->totalOrder) * 100, 2) : 0;
+
+            // Monthly Trends
+            $monthlyData = (clone $baseQuery)
+                ->select(
+                    'dimdate.MonthName',
+                    'dimdate.MonthNumber',
+                    DB::raw('SUM(StockedQty) as yield'),
+                    DB::raw('SUM(OrderQty) as total_order'),
+                    DB::raw('SUM(ScrappedQty) as total_scrapped'),
+                    DB::raw('CAST(SUM(PlannedCost) AS UNSIGNED) as planned'),
+                    DB::raw('CAST(SUM(ActualCost) AS UNSIGNED) as actual'),
+                    DB::raw('IF(SUM(ActualCost) > (SUM(PlannedCost) * 1.1), 1, 0) as exceeds_tolerance')
+                )
+                ->groupBy('dimdate.MonthName', 'dimdate.MonthNumber')
+                ->orderBy('dimdate.MonthNumber')
+                ->get();
+
+            // Lead Time Distribution (Histogram)
+            $leadTimeDist = (clone $baseQuery)
+                ->join('dimproduct', 'factproduction.FK_ProductID', '=', 'dimproduct.ProductID')
+                ->select('ProductionDayCount as days', DB::raw('count(*) as count'))
+                ->when($categoryName, fn($q) => $q->where('dimproduct.CategoryName', $categoryName))
+                ->groupBy('ProductionDayCount')
+                ->orderBy('ProductionDayCount')
+                ->get();
+            
+            // production by category
+            $categoryDistribution = (clone $baseQuery)
+                ->join('dimproduct', 'factproduction.FK_ProductID', '=', 'dimproduct.ProductID')
+                ->select('dimproduct.CategoryName as category', DB::raw('SUM(StockedQty) as total_yield'))
+                ->groupBy('category')
+                ->get();
+
+            // order vs stocked trends
+            $qtyTrends = (clone $baseQuery)
+                ->select(
+                    'dimdate.MonthName',
+                    'dimdate.MonthNumber',
+                    DB::raw('SUM(OrderQty) as total_order'),
+                    DB::raw('SUM(StockedQty) as total_stocked')
+                )
+                ->groupBy('dimdate.MonthName', 'dimdate.MonthNumber')
+                ->orderBy('dimdate.MonthNumber')
+                ->get();
+
+            // Performance Heatmap
+            $heatmap = (clone $baseQuery)
+                ->join('dimlocation', 'factproduction.FK_LocationID', '=', 'dimlocation.LocationID')
+                ->select(
+                    'dimdate.MonthName',
+                    'dimlocation.LocationName',
+                    DB::raw('SUM(StockedQty) as units')
+                )
+                ->groupBy('dimdate.MonthName', 'dimlocation.LocationName', 'dimdate.MonthNumber')
+                ->orderBy('dimdate.MonthNumber')
+                ->get();
+
+            //Pareto: Scrap Reasons (Cumulative Analysis)
+            $scrapPareto = (clone $baseQuery)
+                ->join('dimscrapreason', 'factproduction.FK_ScrapReasonID', '=', 'dimscrapreason.ScrapReasonID')
+                ->select('dimscrapreason.ScrapReasonName as reason', DB::raw('SUM(ScrappedQty) as qty'))
+                ->groupBy('reason')
+                ->orderBy('qty', 'desc')
+                ->get();
+            
+            $totalScrapSum = $scrapPareto->sum('qty');
+            $runningSum = 0;
+            $scrapPareto->transform(function ($item) use (&$runningSum, $totalScrapSum) {
+                $runningSum += $item->qty;
+                $item->cumulative_pct = ($totalScrapSum > 0) ? round(($runningSum / $totalScrapSum) * 100, 2) : 0;
+                return $item;
+            });
+
+            // Top 10 Products by Scrapped Qty
+            $tableData = (clone $baseQuery)
+                ->join('dimproduct', 'factproduction.FK_ProductID', '=', 'dimproduct.ProductID')
+                ->join('dimlocation', 'factproduction.FK_LocationID', '=', 'dimlocation.LocationID')
+                ->select(
+                    'dimproduct.ProductName as product',
+                    'dimlocation.LocationName as location',
+                    'factproduction.OrderQty as qty',
+                    'factproduction.ScrappedQty as scrapped'
+                )
+                ->orderBy('factproduction.ScrappedQty', 'desc')
+                ->limit(10)
+                ->get();
+
+            $hoursDist = (clone $baseQuery)
+                ->select(
+                    DB::raw('ROUND(ActualResourceHrs) as hour_label'), 
+                    DB::raw('COUNT(*) as order_count')
+                )
+                ->when($categoryName, fn($q) => $q->join('dimproduct', 'factproduction.FK_ProductID', '=', 'dimproduct.ProductID')
+                                                ->where('dimproduct.CategoryName', $categoryName))
+                ->groupBy('hour_label')
+                ->orderBy('hour_label')
+                ->get();
+
+            // Return data
+            return response()->json([
+                'kpis' => [
+                    'totalUnits' => (int)$kpis->totalUnits,
+                    'scrapRate' => (float)$scrapRate,
+                    'avgLeadTime' => round((float)$kpis->avgLeadTime, 1)
+                ],
+                'monthlyTrends' => [
+                    'months' => $monthlyData->pluck('MonthName'),
+                    'yield' => $monthlyData->pluck('yield'),
+                    'scrapRates' => $monthlyData->map(fn($d) => ($d->total_order > 0) ? round(($d->total_scrapped / $d->total_order) * 100, 2) : 0),
+                    'plannedCosts' => $monthlyData->pluck('planned'),
+                    'actualCosts' => $monthlyData->pluck('actual'),
+                    'exceedsTolerance' => $monthlyData->pluck('exceeds_tolerance'),
+                ],
+                'leadTimeDistribution' => $leadTimeDist,
+                'heatmap' => $heatmap,
+                'scrapPareto' => $scrapPareto,
+                'tableData' => $tableData,
+                'categoryDist' => $categoryDistribution,
+                'hoursDistribution' => $hoursDist,
+                'qtyComparison' => [
+                    'labels' => $qtyTrends->pluck('MonthName'),
+                    'orderQty' => $qtyTrends->pluck('total_order'),
+                    'stockedQty' => $qtyTrends->pluck('total_stocked'),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-    }
-
-    private function parseXmlaResponse(string $xmlResponse): array
-    {
-        $dom = new \DOMDocument();
-        @$dom->loadXML($xmlResponse);
-
-        $xpath = new \DOMXPath($dom);
-        $xpath->registerNamespace('s', 'http://schemas.xmlsoap.org/soap/envelope/');
-        $xpath->registerNamespace('mddataset', 'urn:schemas-microsoft-com:xml-analysis:mddataset');
-        $xpath->registerNamespace('XA', 'http://mondrian.sourceforge.net');
-
-        // SOAP Fault check
-        $fault = $xpath->query('//s:Fault');
-        if ($fault->length > 0) {
-            $desc = $xpath->query('//XA:error/XA:desc');
-            $msg = $desc->length > 0 ? $desc->item(0)->nodeValue : 'Unknown MDX Error';
-            throw new \Exception($msg);
-        }
-
-        $rows = $xpath->query('//mddataset:row');
-        $result = [];
-
-        foreach ($rows as $row) {
-            $memberCaption = null; // Stores the Time Period (e.g., 2024, Q1)
-            $measureValue = null;  // Stores the Sales Amount
-
-            // Get all cell elements in the row
-            $cells = $xpath->query('*[local-name() != "schemaLocation"]', $row);
-
-            // --- FIXED LOGIC TO GROUP CAPTION AND VALUE PER ROW ---
-            foreach ($cells as $cell) {
-                $cellName = $cell->localName;
-
-                // 1. Identify the Member Caption (The label for the row, e.g., the Year/Quarter)
-                if (stripos($cellName, 'MEMBER_CAPTION') !== false) {
-                    $memberCaption = $cell->nodeValue;
-                }
-                // 2. Identify the Measure Value (The data point)
-                else {
-                    // Assuming any other cell is the measure value
-                    $measureValue = is_numeric($cell->nodeValue) ? (float)$cell->nodeValue : $cell->nodeValue;
-                }
-            }
-
-            // After processing all cells in the row, add the combined object to the result
-            // This ensures we get one {measure: period, value: sales} object per MDX row
-            if ($memberCaption !== null && $measureValue !== null) {
-                $result[] = [
-                    'measure' => $memberCaption, // The time period is now the 'measure' label
-                    'value' => $measureValue,
-                ];
-            }
-        }
-
-        return $result;
     }
 }

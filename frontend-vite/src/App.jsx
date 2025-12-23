@@ -6,10 +6,10 @@ import ProductionPage from "./pages/production.jsx";
 
 export default function App() {
   const [open, setOpen] = useState(true);
-  const [menu, setMenu] = useState("sales");
+  const [menu, setMenu] = useState("production");
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-gray-100 flex" style={{ fontFamily: "'Inter', sans-serif" }}>
       
       {/* SIDEBAR */}
       <div className={`${open ? "w-64" : "w-20"} bg-white shadow-lg transition-all duration-300 bg-fixed`}>
