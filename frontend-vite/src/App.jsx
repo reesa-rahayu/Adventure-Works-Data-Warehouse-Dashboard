@@ -48,7 +48,7 @@ export default function App() {
         </div>
 
         {/* SIDEBAR ITEMS */}
-          <div className="mt-5 px-3">
+          <div className="mt-2">
             {/* Dashboard: Everyone can see this */}
             <SidebarItem 
               title="Dashboard" icon="🏠" 
@@ -57,22 +57,22 @@ export default function App() {
               open={open}
             />
 
-            {/* Purchasing: GM or Purchasing role only */}
-            {(user.role === 'gm' || user.role === 'purchasing') && (
-              <SidebarItem 
-                title="Purchasing Report" icon="📦" 
-                active={menu === "purchasing"} 
-                onClick={() => setMenu("purchasing")} 
-                open={open}
-              />
-            )}
-
             {/* Sales: GM or Sales role only */}
             {(user.role === 'gm' || user.role === 'sales') && (
               <SidebarItem 
                 title="Sales Report" icon="💰" 
                 active={menu === "sales"} 
                 onClick={() => setMenu("sales")} 
+                open={open}
+              />
+            )}
+            
+            {/* Purchasing: GM or Purchasing role only */}
+            {(user.role === 'gm' || user.role === 'purchasing') && (
+              <SidebarItem 
+                title="Purchasing Report" icon="📦" 
+                active={menu === "purchasing"} 
+                onClick={() => setMenu("purchasing")} 
                 open={open}
               />
             )}
@@ -89,7 +89,7 @@ export default function App() {
           </div>
 
           {/* OLAP */}
-          <div className="mt-6">
+          <div className="mt-4">
             <p className={`text-xs font-bold text-gray-400 mb-2 px-3 uppercase ${!open && "hidden"}`}>OLAP Cubes</p>
             
             {(user.role === 'gm' || user.role === 'sales') && (
