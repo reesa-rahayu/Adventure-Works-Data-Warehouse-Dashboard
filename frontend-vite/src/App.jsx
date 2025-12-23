@@ -6,7 +6,7 @@ import ProductionPage from "./pages/production.jsx";
 
 export default function App() {
   const [open, setOpen] = useState(true);
-  const [menu, setMenu] = useState("production");
+  const [menu, setMenu] = useState("purchasing");
 
   return (
     <div className="min-h-screen bg-gray-100 flex" style={{ fontFamily: "'Inter', sans-serif" }}>

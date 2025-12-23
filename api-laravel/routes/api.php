@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\ProductionController;
+use App\Http\Controllers\PurchasingController;
 
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
@@ -20,7 +21,10 @@ Route::post('/sales/top-customers', [SalesController::class, 'getTopCustomers'])
 Route::post('/sales/top-salesperson', [SalesController::class, 'getTopSalespeople']);
 
 Route::get('/production-data', [ProductionController::class, 'getAnalytics']);
+Route::get('/purchasing-data', [PurchasingController::class, 'getAnalytics']);
+
 
 Route::get('/years', [FilterController::class, 'getYears']);
 Route::get('/locations', [FilterController::class, 'getLocations']);
 Route::get('/categories', [FilterController::class, 'getCategories']);
+Route::get('/vendors', [FilterController::class, 'getVendors']);

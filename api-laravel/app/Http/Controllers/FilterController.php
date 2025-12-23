@@ -39,4 +39,19 @@ class FilterController extends Controller
                 ->pluck('CategoryName')
         );
     }
+
+    public function getVendors()
+    {
+        try {
+            $vendors = DB::table('dimvendor')
+                ->select('VendorID', 'VendorName', 'CreditRating')
+                ->where('ActiveFlag', 1) // Only show active vendors
+                ->orderBy('VendorName', 'asc')
+                ->get();
+
+            return response()->json($vendors);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to fetch vendors: ' . $e->getMessage()], 500);
+        }
+    }
 }
