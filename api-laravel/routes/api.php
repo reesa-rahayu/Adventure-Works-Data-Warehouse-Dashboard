@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FilterController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -20,10 +21,6 @@ Route::post('/sales/top-salesperson', [SalesController::class, 'getTopSalespeopl
 
 Route::get('/production/get-data', [ProductionController::class, 'getAnalytics']);
 
-Route::get('/years', function () {
-    return DB::table('dimdate')
-        ->select('YearNumber')
-        ->distinct()
-        ->orderBy('YearNumber')
-        ->pluck('YearNumber');
-});
+Route::get('/years', [FilterController::class, 'getYears']);
+Route::get('/locations', [FilterController::class, 'getLocations']);
+Route::get('/categories', [FilterController::class, 'getCategories']);
