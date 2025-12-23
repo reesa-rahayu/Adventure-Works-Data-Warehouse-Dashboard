@@ -1,10 +1,11 @@
 <?php
 
-use App\Http\Controllers\FilterController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SalesController;
+use App\Http\Controllers\FilterController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\PurchasingController;
 
@@ -22,6 +23,7 @@ Route::post('/sales/top-salesperson', [SalesController::class, 'getTopSalespeopl
 
 Route::get('/production-data', [ProductionController::class, 'getAnalytics']);
 Route::get('/purchasing-data', [PurchasingController::class, 'getAnalytics']);
+Route::get('/dashboard', [DashboardController::class, 'getSummary']);
 
 
 Route::get('/years', [FilterController::class, 'getYears']);
