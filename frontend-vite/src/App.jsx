@@ -4,6 +4,9 @@ import Dashboard from "./pages/dashboard.jsx";
 import SalesPage from "./pages/sales.jsx";
 import PurchasingPage from "./pages/purchasing.jsx";
 import ProductionPage from "./pages/production.jsx";
+import SalesOlapPage from "./pages/sales-olap.jsx";
+import PurchasingOlapPage from "./pages/purchasing-olap.jsx";
+import ProductionOlapPage from "./pages/production-olap.jsx";
 import LoginPage from "./pages/auth/login.jsx";
 
 export default function App() {
@@ -84,7 +87,24 @@ export default function App() {
               />
             )}
           </div>
-          
+
+          {/* OLAP */}
+          <div className="mt-6">
+            <p className={`text-xs font-bold text-gray-400 mb-2 px-3 uppercase ${!open && "hidden"}`}>OLAP Cubes</p>
+            
+            {(user.role === 'gm' || user.role === 'sales') && (
+              <SidebarItem title="Sales OLAP" icon="📊" active={menu === "sales-olap"} onClick={() => setMenu("sales-olap")} open={open} />
+            )}
+
+            {(user.role === 'gm' || user.role === 'purchasing') && (
+              <SidebarItem title="Purchasing OLAP" icon="📉" active={menu === "purchasing-olap"} onClick={() => setMenu("purchasing-olap")} open={open} />
+            )}
+
+            {(user.role === 'gm' || user.role === 'production') && (
+              <SidebarItem title="Production OLAP" icon="🏗️" active={menu === "production-olap"} onClick={() => setMenu("production-olap")} open={open} />
+            )}
+          </div>
+        
           {/* BOTTOM SECTION - User Info & Logout */}
           <div className="mt-auto border-t p-3 bg-gray-50">
             <div className={`flex items-center gap-3 p-2 mb-2 ${!open && "justify-center"}`}>
@@ -128,10 +148,13 @@ export default function App() {
           {menu === "dashboard" && <Dashboard />}
           
           {menu === "sales" && (user.role === 'gm' || user.role === 'sales') && <SalesPage />}
+          {menu === "sales-olap" && (user.role === 'gm' || user.role === 'sales') && <SalesOlapPage />}
           
           {menu === "purchasing" && (user.role === 'gm' || user.role === 'purchasing') && <PurchasingPage />}
+          {menu === "purchasing-olap" && (user.role === 'gm' || user.role === 'purchasing') && <PurchasingOlapPage />}
           
           {menu === "production" && (user.role === 'gm' || user.role === 'production') && <ProductionPage />}
+          {menu === "production-olap" && (user.role === 'gm' || user.role === 'production') && <ProductionOlapPage />}
         </div>
 
       </div>
