@@ -64,6 +64,41 @@ class ProductionController extends Controller
                 ->groupBy('category')
                 ->get();
 
+            // production by location
+            $locationDist = (clone $baseQuery)
+                ->join('dimlocation', 'factproduction.FK_LocationID', '=', 'dimlocation.LocationID')
+                ->select(
+                    'dimlocation.LocationID as id', 
+                    'dimlocation.LocationName as name', 
+                    DB::raw('SUM(OrderQty) as total'),
+                    DB::raw('SUM(ScrappedQty) as scrapped'),
+                    DB::raw('ROUND((SUM(ScrappedQty) / SUM(OrderQty)) * 100, 2) as scrapRate')
+                )
+                ->groupBy('dimlocation.LocationID', 'dimlocation.LocationName')
+                ->orderBy('total', 'desc')
+                ->get();
+
+            $rawLocationTrends = (clone $baseQuery)
+                ->join('dimlocation', 'factproduction.FK_LocationID', '=', 'dimlocation.LocationID')
+                ->select(
+                    'dimlocation.LocationName',
+                    'dimdate.MonthName',
+                    'dimdate.MonthNumber',
+                    DB::raw('SUM(StockedQty) as monthly_yield')
+                )
+                ->groupBy('dimlocation.LocationName', 'dimdate.MonthName', 'dimdate.MonthNumber')
+                ->orderBy('dimdate.MonthNumber')
+                ->get();
+            
+            $locationTrendDatasets = $rawLocationTrends->groupBy('LocationName')->map(function ($data, $locationName) {
+                return [
+                    'label' => $locationName,
+                    'data' => $data->pluck('monthly_yield'),
+                    'backgroundColor' => 'transparent',
+                    'tension' => 0.4
+                ];
+            })->values();
+
             // order vs stocked trends
             $qtyTrends = (clone $baseQuery)
                 ->select(
@@ -104,7 +139,7 @@ class ProductionController extends Controller
                 return $item;
             });
 
-            // Top 10 Products by Scrapped Qty
+            // Top 10 Highest Scrap Records Table
             $tableData = (clone $baseQuery)
                 ->join('dimproduct', 'factproduction.FK_ProductID', '=', 'dimproduct.ProductID')
                 ->join('dimlocation', 'factproduction.FK_LocationID', '=', 'dimlocation.LocationID')
@@ -112,9 +147,10 @@ class ProductionController extends Controller
                     'dimproduct.ProductName as product',
                     'dimlocation.LocationName as location',
                     'factproduction.OrderQty as qty',
-                    'factproduction.ScrappedQty as scrapped'
+                    'factproduction.ScrappedQty as scrapped',
+                    DB::raw('ROUND((factproduction.ScrappedQty / factproduction.OrderQty) * 100, 2) as scrapRate')
                 )
-                ->orderBy('factproduction.ScrappedQty', 'desc')
+                ->orderBy('scrapRate', 'desc')
                 ->limit(10)
                 ->get();
 
@@ -149,6 +185,8 @@ class ProductionController extends Controller
                 'scrapPareto' => $scrapPareto,
                 'tableData' => $tableData,
                 'categoryDist' => $categoryDistribution,
+                'locationDist' => $locationDist,
+                'locationTrends' => $locationTrendDatasets,
                 'hoursDistribution' => $hoursDist,
                 'qtyComparison' => [
                     'labels' => $qtyTrends->pluck('MonthName'),

@@ -61,11 +61,15 @@ export default function ProductionAnalytics() {
     });
   }, []);
 
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
   const fetchProductionData = useCallback(async () => {
     try {
       if (!data) setLoading(true); 
       else setIsDrillingDown(true);
-      const response = await axios.get("/api/production/get-data", { 
+      const response = await axios.get("/api/production-data", { 
         params: { ...filters, category_name: selectedCategory } 
       });
       setData(response.data);
@@ -167,6 +171,15 @@ export default function ProductionAnalytics() {
       </div>
     );
   };
+  const PINK_PALETTE = [
+    "#F472B6", 
+    "#FBC6F2",
+    "#F8BBD0",
+    "#EF6B9A",
+    "#4A5568", 
+    "#CBD5E0", 
+    "#E11D48",
+  ];
 
   return (
     <div style={{ minHeight: "100vh"}}>
@@ -408,12 +421,56 @@ export default function ProductionAnalytics() {
           </div>
         </div>
       </div>
+      
+      <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#2D3748", margin: "32px 0 16px 0" }}>Detailed Analysis</h2>
+      {/* Category + location Drill Down */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", margin: "24px 0", position: "relative" }}>
+        {/* PRODUCTION by LOCATION (Drill-down) */}
+        <div style={cardStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <h3 style={{ fontSize: "16px", margin: 0 }}>Unit Produced by Location</h3>
+            {filters.location_id && (
+              <button 
+                onClick={() => handleFilterChange("location_id", "")}
+                style={{ fontSize: "11px", color: DEEP_PINK, border: `1px solid ${DEEP_PINK}`, borderRadius: "4px", padding: "2px 6px", cursor: "pointer", background: "white" }}
+              >
+                Reset Location
+              </button>
+            )}
+          </div>
+          <div style={{ height: "300px" }}>
+            <Bar 
+              data={{
+                // Assumes your API returns locationDist: [{id: 1, name: 'Seattle', total: 5000}]
+                labels: data?.locationDist?.map(d => d.name) || [],
+                datasets: [{
+                  label: "Units Produced",
+                  data: data?.locationDist?.map(d => d.total) || [],
+                  backgroundColor: filters.location_id ? DEEP_PINK : ACCENT_PINK,
+                  borderRadius: 5
+                }]
+              }}
+              options={{
+                indexAxis: 'y', // Horizontal bars for better readability of location names
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                onClick: (event, elements) => {
+                  if (elements.length > 0) {
+                    const idx = elements[0].index;
+                    const locId = data.locationDist[idx].id;
+                    handleFilterChange("location_id", locId);
+                  }
+                },
+              }}
+            />
+          </div>
+        </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 1fr", gap: "24px", margin: "24px 0", position: "relative" }}>
         {/* PRODUCTION QUANTITY by CATEGORY */}
         <div style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <h3 style={{ fontSize: "16px", margin: 0 }}>Output by Category</h3>
+            <h3 style={{ fontSize: "16px", margin: 0 }}>Unit Produced on {filters.location_id ? "Selected Location" : "All Locations"} by Category</h3>
             {selectedCategory && (
               <button 
                 onClick={() => setSelectedCategory(null)}
@@ -476,7 +533,81 @@ export default function ProductionAnalytics() {
               </div>
             </div>
           )}
+          {/*SCRAP RATE % BY LOCATION */}
+          <div style={cardStyle}>
+            <h3 style={{ marginBottom: "20px", fontSize: "16px", color: PURPLE_HINT }}>Scrap Rate % by Location</h3>
+            <div style={{ height: "300px" }}>
+              <Bar 
+                data={{
+                  labels: data?.locationDist?.map(d => d.name) || [],
+                  datasets: [{
+                    label: "Scrap Rate %",
+                    data: data?.locationDist?.map(d => d.scrapRate) || [],
+                    backgroundColor: (ctx) => {
+                        const val = data?.locationDist[ctx.dataIndex]?.scrapRate;
+                        return val > 5 ? "#E53E3E" : DEEP_PINK; // Red if > 5% scrap
+                    },
+                    borderRadius: 5
+                  }]
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  onClick: (event, elements) => {
+                    if (elements.length > 0) {
+                      const idx = elements[0].index;
+                      handleFilterChange("location_id", data.locationDist[idx].id);
+                    }
+                  },
+                  scales: {
+                    y: { ticks: { callback: (v) => v + "%" }, title: { display: true, text: "Waste %" } }
+                  }
+                }}
+              />
+            </div>
+          </div>
 
+          {/*PRODUCTION OVER TIME BY LOCATION */}
+          <div style={cardStyle}>
+            <h3 style={{ marginBottom: "20px", fontSize: "16px", color: PURPLE_HINT }}>
+                {filters.location_id ? `Monthly Output: ${data?.locationDist?.find(l => l.id == filters.location_id)?.name}` : "Monthly Output by Location"}
+            </h3>
+            <div style={{ height: "300px" }}>
+              <Line 
+                data={{
+                  labels: data.monthlyTrends.months,
+                  datasets: data.locationTrends.map((ds, index) => {
+                    const color = PINK_PALETTE[index % PINK_PALETTE.length];
+
+                    return {
+                      ...ds,
+                      borderColor: color,
+                      fill: true,
+                      tension: 0.35,
+                      borderWidth: 2,
+                      pointRadius: 3,
+                      pointHoverRadius: 5,
+                      pointBackgroundColor: color,
+                    };
+                  })
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { 
+                        position: 'top', 
+                        labels: { boxWidth: 10, font: { size: 10 } } 
+                    }
+                  },
+                  scales: {
+                    y: { beginAtZero: true, title: { display: true, text: "Units" } }
+                  }
+                }}
+              />
+            </div>
+          </div>
+          
           {/* LEAD TIME DISTRIBUTION: DRILL-DOWN VIEW */}
           <div style={cardStyle}>
             <h3 style={{ marginBottom: "20px", fontSize: "16px" }}>
@@ -540,7 +671,7 @@ export default function ProductionAnalytics() {
 
       {/* Top scrapped product */}
       <div style={{ ...cardStyle, marginTop: "24px" }}>
-        <h3 style={{ marginBottom: "12px", fontSize: "16px", color: PURPLE_HINT, fontWeight: "600", lineHeight: "24px" }}>Top 10 Scrapped Products</h3>
+        <h3 style={{ marginBottom: "12px", fontSize: "16px", color: PURPLE_HINT, fontWeight: "600", lineHeight: "24px" }}>Top 10 Highest Scrapped Quantity</h3>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ textAlign: "left", color: "#718096", fontSize: "14px", borderBottom: "2px solid #FDF2F5" }}>
@@ -548,6 +679,7 @@ export default function ProductionAnalytics() {
               <th style={{ padding: "12px" }}>Location</th>
               <th style={{ padding: "12px", textAlign: "right" }}>Total Qty</th>
               <th style={{ padding: "12px", textAlign: "right" }}>Scrapped</th>
+              <th style={{ padding: "12px", textAlign: "right" }}>Scrap Rate</th>
             </tr>
           </thead>
           <tbody>
@@ -557,6 +689,7 @@ export default function ProductionAnalytics() {
                 <td style={{ padding: "16px" }}>{item.location}</td>
                 <td style={{ padding: "16px", textAlign: "right" }}>{item.qty}</td>
                 <td style={{ padding: "16px", textAlign: "right", color: "#E53E3E", fontWeight: "bold" }}>{item.scrapped}</td>
+                <td style={{ padding: "16px", textAlign: "right" }}>{item.scrapRate}%</td>
               </tr>
             ))}
           </tbody>

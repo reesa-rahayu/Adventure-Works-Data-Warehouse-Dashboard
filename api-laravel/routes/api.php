@@ -19,7 +19,7 @@ Route::post('/sales/top-products', [SalesController::class, 'getTopProducts']);
 Route::post('/sales/top-customers', [SalesController::class, 'getTopCustomers']);
 Route::post('/sales/top-salesperson', [SalesController::class, 'getTopSalespeople']);
 
-Route::get('/production/get-data', [ProductionController::class, 'getAnalytics']);
+Route::get('/production-data', [ProductionController::class, 'getAnalytics']);
 
 Route::get('/years', [FilterController::class, 'getYears']);
 Route::get('/locations', [FilterController::class, 'getLocations']);
