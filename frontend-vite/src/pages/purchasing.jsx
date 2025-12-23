@@ -61,7 +61,7 @@ export default function PurchasingAnalytics() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  if (loading || !data) return <div style={{ padding: "100px", textAlign: "center", color: DEEP_PINK }}>Loading Procurement Data...</div>;
+  if (loading || !data) return <div style={{ padding: "100px", textAlign: "center", color: DEEP_PINK }}>Loading Purchasing Data...</div>;
 
   return (
     <div style={{ minHeight: "100vh" }}>
